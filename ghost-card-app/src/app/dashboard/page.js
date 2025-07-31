@@ -37,7 +37,7 @@ export default function DashboardPage() {
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/ghost_cards?user_id=${userId}`);
+      const res = await fetch(`http://localhost:8080/cards/ghost_cards?user_id=${userId}`);
       if (!res.ok) throw new Error("Failed to fetch ghost cards");
       const data = await res.json();
       setGhostCards(data.cards || []);
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         `${ghostCardData.expirationDate}T${ghostCardData.expirationTime}:00`
       ).toISOString();
 
-      const res = await fetch("http://localhost:8080/create_ghost_cards", {
+      const res = await fetch("http://localhost:8080/cards/create_ghost_cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

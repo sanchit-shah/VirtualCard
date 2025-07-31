@@ -1,29 +1,111 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import styles from './styles.module.css';
 
 // Demo merchants list
 const MERCHANTS = [
-  'Amazon', 'Spotify', 'Netflix', 'Walmart', 'Target',
-  'Apple', 'Google Play', 'Uber', 'DoorDash', 'Grubhub',
-  'Best Buy', 'eBay', 'Etsy', 'Steam', 'PlayStation',
+  'amazon', 'spotify', 'netflix', 'walmart', 'target',
+  'apple', 'google play', 'uber', 'doordash', 'grubhub',
+  'best buy', 'ebay', 'etsy', 'steam', 'playstation',
 ];
 
 export default function GhostCardManagePage() {
-  // Static demo data
-  const [alias] = useState('Demo Ghost Card');
-  const [amount] = useState('1000.00');
-  const [expiresAt] = useState('12/31/2024');
-  const [merchants] = useState('Amazon, Netflix, Spotify');
-  const [cardDetails] = useState({
-    stripe_card: {
-      last4: '4242',
-      status: 'active'
-    }
-  });
+  const params = useParams();
+  const cardId = params.id;
+  
+  // Real state from backend
+  const [cardData, setCardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState([]);
   const [simulationAmount, setSimulationAmount] = useState('');
   const [simulationMerchant, setSimulationMerchant] = useState('');
-  const [transactions] = useState([]); // Empty for now
+  const [simulationLoading, setSimulationLoading] = useState(false);
+
+  // Fetch card data on load
+  useEffect(() => {
+    fetchCardData();
+    fetchTransactions();
+  }, [cardId]);
+
+  const fetchCardData = async () => {
+    const userId = localStorage.getItem('user_id');
+    if (!userId) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/cards/ghost_cards?user_id=${userId}`);
+      const data = await res.json();
+      const card = data.cards.find(c => c.id === cardId);
+      setCardData(card);
+    } catch (err) {
+      console.error('Error fetching card data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    // TODO: Add transaction history endpoint
+    setTransactions([]);
+  };
+
+  const handleTransactionSimulation = async (e) => {
+    e.preventDefault();
+    if (!cardData) return;
+    
+    setSimulationLoading(true);
+    try {
+      const res = await fetch('http://localhost:8080/cards/charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          card_id: cardData.stripe_card_id,
+          amount: parseFloat(simulationAmount),
+          merchant: simulationMerchant
+        })
+      });
+
+      const result = await res.json();
+      
+      // Add transaction to list (approved or rejected)
+      const newTransaction = {
+        id: Date.now(),
+        amount: parseFloat(simulationAmount),
+        merchant: simulationMerchant,
+        status: result.approved ? 'approved' : 'rejected',
+        reason: result.reason,
+        timestamp: new Date().toISOString()
+      };
+      
+      setTransactions(prev => [newTransaction, ...prev]);
+      
+      // Reset form
+      setSimulationAmount('');
+      setSimulationMerchant('');
+      
+      // Refresh card data to get updated balance
+      fetchCardData();
+      
+    } catch (err) {
+      console.error('Transaction error:', err);
+    } finally {
+      setSimulationLoading(false);
+    }
+  };
+
+  if (loading) return <p>Loading card details...</p>;
+  if (!cardData) return <p>Card not found</p>;
+
+  // Extract card properties
+  const alias = `Ghost Card ${cardData.id.slice(-4)}`;
+  const amount = cardData.balance || 0;
+  const expiresAt = cardData.expires_at ? new Date(cardData.expires_at.seconds * 1000).toLocaleDateString() : 'N/A';
+  const merchants = cardData.allowed_merchants ? cardData.allowed_merchants.join(', ') : 'No restrictions';
+  const cardDetails = {
+    stripe_card: {
+      last4: cardData.last4 || '0000'
+    }
+  };
 
   return (
     <div className={styles.container}>

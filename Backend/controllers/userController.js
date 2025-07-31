@@ -38,7 +38,7 @@ async function createStripeCardholder(data) {
 
 /**
  * Creates a new user document in Firestore "users" collection.
- * @param {Object} data - User data (name, total_balance, stripe_cardholder_id)
+ * @param {Object} data - User data (name, stripe_cardholder_id)
  * @returns {Promise<Object>} - Returns Firestore document reference
  */
 async function createDatabaseUser(data) {
@@ -46,7 +46,6 @@ async function createDatabaseUser(data) {
         const db = admin.firestore();
         const userRef = await db.collection("users").add({
             name: data.name,
-            total_balance: data.total_balance,
             stripe_cardholder_id: data.stripe_cardholder_id,
             card_ids: [],
             open_card_count: 0,
@@ -67,16 +66,15 @@ async function createDatabaseUser(data) {
  * @param {Object} req - Express request object containing user data in the body.
  * @param {Object} req.body - The request body.
  * @param {string} req.body.name - The name of the user.
- * @param {number} req.body.total_balance - The initial total balance for the user.
  * @param {Object} res - Express response object used to send the response.
  * @returns {Promise<void>} Responds with JSON containing success status, user ID, and Stripe cardholder ID, or an error message.
  */
 async function createUser(req, res) {
     try {
-        const { name, total_balance } = req.body;
+        const { name } = req.body;
 
-        if (!name || total_balance === undefined) {
-            return res.status(400).json({ error: "Missing name or total_balance" });
+        if (!name) {
+            return res.status(400).json({ error: "Missing name" });
         }
 
         // Create Stripe Cardholder
@@ -85,7 +83,6 @@ async function createUser(req, res) {
         // Create Firestore user
         const userRef = await createDatabaseUser({
             name,
-            total_balance,
             stripe_cardholder_id: cardholder.id,
             card_ids: [],
             open_card_count: 0,

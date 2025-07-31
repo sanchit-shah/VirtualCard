@@ -3,6 +3,7 @@
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const admin = require("firebase-admin");
+const { evaluateTransaction, getCardData, updateCardAfterTransaction } = require("../services/rulesEngine");
 
 /**
  * Creates a new virtual card using Stripe Issuing and stores its information in Firestore.
@@ -23,8 +24,24 @@ async function createCard(req, res) {
     const db = admin.firestore();
     const { user_id, amount, allowed_merchants, expires_at } = req.body;
 
-    // 1️⃣ Get user from Firestore
-    const userSnap = await db.collection("users").doc(user_id).get();
+    // 1️⃣ Get user from Firestore (search by user_id or stripe_cardholder_id)
+    let userSnap;
+    
+    // Try to find by Firestore document ID first
+    userSnap = await db.collection("users").doc(user_id).get();
+    
+    // If not found, try to find by stripe_cardholder_id
+    if (!userSnap.exists) {
+      const userQuery = await db.collection("users")
+        .where("stripe_cardholder_id", "==", user_id)
+        .limit(1)
+        .get();
+      
+      if (!userQuery.empty) {
+        userSnap = userQuery.docs[0];
+      }
+    }
+    
     if (!userSnap.exists) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -56,7 +73,8 @@ async function createCard(req, res) {
     const cardRef = await db.collection("ghost_cards").add({
       user_id,
       stripe_card_id: card.id,
-      amount,
+      balance: amount, // Store as balance for rules engine
+      original_amount: amount, // Keep original amount field for reference
       allowed_merchants,
       expires_at: admin.firestore.Timestamp.fromDate(new Date(expires_at)),
       status: "active",
@@ -118,8 +136,70 @@ async function deactivateCard(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+
+async function chargeCard (req, res) {
+    try {
+        const { card_id, amount, merchant, currency = "usd" } = req.body;
+
+        if (!card_id || !amount || !merchant) {
+            return res.status(400).json({ error: "Missing required fields: card_id, amount, merchant" });
+        }
+
+        // 1️⃣ Get card data from Firestore
+        const cardData = await getCardData(card_id);
+        if (!cardData) {
+            return res.status(404).json({ error: "Card not found" });
+        }
+
+        // 2️⃣ Prepare transaction data
+        const transaction = {
+            card_id,
+            amount,
+            merchant,
+            currency
+        };
+
+        // 3️⃣ Evaluate transaction against rules
+        const evaluation = await evaluateTransaction(transaction, cardData);
+
+        if (!evaluation.approved) {
+            return res.status(403).json({
+                approved: false,
+                reason: evaluation.reason
+            });
+        }
+
+        // 4️⃣ Process transaction (simulate Stripe charge)
+        // In production, you'd create actual Stripe charge here
+
+        // 5️⃣ Update card after successful transaction
+        const updateSuccess = await updateCardAfterTransaction(cardData.id, transaction, cardData);
+
+        if (!updateSuccess) {
+            return res.status(500).json({ error: "Failed to update card after transaction" });
+        }
+
+        // 6️⃣ Return success response
+        res.json({
+            approved: true,
+            transaction_id: `txn_${Date.now()}`, // Mock transaction ID
+            amount,
+            merchant,
+            remaining_balance: cardData.balance - amount,
+            reason: evaluation.reason
+        });
+
+    } catch (error) {
+        console.error("Error charging card:", error.stack);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+
 // Export modules
 module.exports = {
     createCard,
-    deactivateCard
+    deactivateCard,
+    chargeCard
 }

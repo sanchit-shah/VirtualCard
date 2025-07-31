@@ -20,8 +20,8 @@ if (!admin.apps.length) {
 app.use(cors());
 app.use(express.json());
 
-app.use('/', userRoutes);
-app.use('/', cardRoutes);
+app.use('/users', userRoutes);
+app.use('/cards', cardRoutes);
 
 // Default route for API info
 app.get("/about", (req, res) => {

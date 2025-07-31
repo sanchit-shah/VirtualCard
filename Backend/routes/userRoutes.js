@@ -10,7 +10,7 @@ const admin = require("firebase-admin");
 
 
 // POST /users - Create a new user and Stripe cardholder
-router.post('/users', createUser);
+router.post('/', createUser);
 
 
 module.exports = router;

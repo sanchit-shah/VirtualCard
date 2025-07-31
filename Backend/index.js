@@ -8,6 +8,7 @@ const cors = require('cors');
 const cardRoutes = require("./routes/cardRoutes");
 const userRoutes = require('./routes/userRoutes');
 const serviceAccount = require("./config/serviceAccountKey.json");
+const db = admin.firestore();
 
 // Initialize Firebase Admin (only once)
 if (!admin.apps.length) {

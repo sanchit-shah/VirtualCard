@@ -1,161 +1,194 @@
 .container {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background: #f5f5f7;
 }
 
 .nav {
-  background-color: #ffffff;
-  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  padding: 1rem 2rem;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.navLeft {
-  display: flex;
-  align-items: center;
+.dashboard {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
   gap: 2rem;
-}
-
-.navLeft h1 {
-  color: #1a365d;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.backBtn {
-  padding: 0.75rem 1.5rem;
-  background-color: #e2e8f0;
-  color: #4a5568;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.backBtn:hover {
-  background-color: #cbd5e0;
-}
-
-.main {
   padding: 2rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-.cardDetails {
+.leftPanel,
+.rightPanel {
   background: white;
-  padding: 2rem;
   border-radius: 12px;
+  padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
-.cardDetails h2 {
-  color: #2d3748;
-  margin-bottom: 2rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.cardInfo {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
+.virtualCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  color: white;
   margin-bottom: 2rem;
 }
 
-.infoGroup {
-  margin-bottom: 1.5rem;
-}
-
-.infoGroup label {
-  display: block;
-  color: #718096;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.infoGroup p {
-  color: #2d3748;
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-.merchantsList {
+.cardHeader {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.balanceContainer {
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.merchantChip {
-  background-color: #ebf8ff;
-  color: #3182ce;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 500;
+.balanceLabel {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
-.statusBadge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 500;
+.balanceAmount {
+  font-size: 2.5rem;
+  font-weight: 600;
 }
 
-.statusBadge.active {
-  background-color: #c6f6d5;
-  color: #2f855a;
+.cardNumber {
+  font-size: 1.25rem;
+  letter-spacing: 2px;
+  margin-bottom: 2rem;
 }
 
-.cardActions {
+.cardFooter {
   display: flex;
-  gap: 1rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e2e8f0;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.cardActions button {
-  padding: 0.75rem 1.5rem;
-  border: none;
+.cardType {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.rulesSection,
+.transactionsSection {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.editButton {
+  background: transparent;
+  border: 1px solid #667eea;
+  color: #667eea;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.editBtn {
-  background-color: #3182ce;
+.rule {
+  padding: 1rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.rule:last-child {
+  border-bottom: none;
+}
+
+.rule span {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.rule p {
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.simulationTool {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.simulationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inputGroup input,
+.inputGroup select {
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.simulateBtn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+.simulateBtn:hover {
+  background: #5a6fe4;
+}
+
+.noTransactions {
+  text-align: center;
+  color: #6c757d;
+  padding: 2rem 0;
+}
+
+.status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.active {
+  background-color: #22c55e;
   color: white;
 }
 
-.editBtn:hover {
-  background-color: #2c5282;
+.inactive {
+  background-color: #ef4444;
+  color: white;
 }
 
-.deleteBtn {
-  background-color: #fed7d7;
-  color: #e53e3e;
-}
-
-.deleteBtn:hover {
-  background-color: #feb2b2;
-}
-
-.freezeBtn {
-  background-color: #e2e8f0;
-  color: #4a5568;
-}
-
-.freezeBtn:hover {
-  background-color: #cbd5e0;
+.pending {
+  background-color: #f59e0b;
+  color: white;
 }

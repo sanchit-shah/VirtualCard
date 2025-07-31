@@ -2,94 +2,131 @@
 import { useState } from 'react';
 import styles from './styles.module.css';
 
+// Demo merchants list
+const MERCHANTS = [
+  'Amazon', 'Spotify', 'Netflix', 'Walmart', 'Target',
+  'Apple', 'Google Play', 'Uber', 'DoorDash', 'Grubhub',
+  'Best Buy', 'eBay', 'Etsy', 'Steam', 'PlayStation',
+];
+
 export default function GhostCardManagePage() {
-  const [alias, setAlias] = useState('');
-  const [amount, setAmount] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
-  const [merchants, setMerchants] = useState('');
-  const [cardDetails, setCardDetails] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleCreateCard = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const userId = localStorage.getItem('user_id');
-      if (!userId) {
-        throw new Error('No logged-in user found');
-      }
-
-      const res = await fetch('http://localhost:8080/create_ghost_cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          amount: parseFloat(amount),
-          allowed_merchants: merchants.split(',').map(m => m.trim()),
-          expires_at: expiresAt
-        })
-      });
-
-      if (!res.ok) throw new Error('Failed to create ghost card');
-      const data = await res.json();
-      setCardDetails(data);
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  // Static demo data
+  const [alias] = useState('Demo Ghost Card');
+  const [amount] = useState('1000.00');
+  const [expiresAt] = useState('12/31/2024');
+  const [merchants] = useState('Amazon, Netflix, Spotify');
+  const [cardDetails] = useState({
+    stripe_card: {
+      last4: '4242',
+      status: 'active'
     }
-  };
+  });
+  const [simulationAmount, setSimulationAmount] = useState('');
+  const [simulationMerchant, setSimulationMerchant] = useState('');
+  const [transactions] = useState([]); // Empty for now
 
   return (
     <div className={styles.container}>
       <nav className={styles.nav}>
         <div className={styles.navLeft}>
-          <h1>Create Ghost Card</h1>
+          <h1>Ghost Card Management</h1>
         </div>
         <button className={styles.backBtn} onClick={() => window.location.href = '/dashboard'}>
           ← Back to Dashboard
         </button>
       </nav>
 
-      <main className={styles.main}>
-        <div className={styles.cardForm}>
-          <div className={styles.inputGroup}>
-            <label>Alias</label>
-            <input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Netflix Monthly" />
-          </div>
-          <div className={styles.inputGroup}>
-            <label>Amount (USD)</label>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-          <div className={styles.inputGroup}>
-            <label>Allowed Merchants (comma separated)</label>
-            <input value={merchants} onChange={(e) => setMerchants(e.target.value)} placeholder="Netflix, Spotify" />
-          </div>
-          <div className={styles.inputGroup}>
-            <label>Expiration Date</label>
-            <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+      <main className={styles.dashboard}>
+        <div className={styles.leftPanel}>
+          <div className={styles.virtualCard}>
+            <div className={styles.cardHeader}>
+              <h3>{alias}</h3>
+              <div className={styles.balanceContainer}>
+                <span className={styles.balanceLabel}>Balance</span>
+                <span className={styles.balanceAmount}>
+                  ${parseFloat(amount).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <div className={styles.cardNumber}>
+              •••• •••• •••• {cardDetails.stripe_card.last4}
+            </div>
+            <div className={styles.cardFooter}>
+              <span>Expires: {expiresAt}</span>
+              <span className={styles.cardType}>VIRTUAL</span>
+            </div>
           </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+          <div className={styles.rulesSection}>
+            <div className={styles.sectionHeader}>
+              <h3>Card Rules</h3>
+              <button className={styles.editButton}>Edit Rules</button>
+            </div>
+            <div className={styles.rulesList}>
+              <div className={styles.rule}>
+                <span>🏪 Allowed Merchants</span>
+                <p>{merchants}</p>
+              </div>
+              <div className={styles.rule}>
+                <span>💰 Spending Limit</span>
+                <p>${amount}</p>
+              </div>
+              <div className={styles.rule}>
+                <span>⏱️ Expiration</span>
+                <p>{expiresAt}</p>
+              </div>
+            </div>
+          </div>
 
-          <button onClick={handleCreateCard} disabled={loading} className={styles.button}>
-            {loading ? 'Creating...' : 'Create Ghost Card'}
-          </button>
+          <div className={styles.transactionsSection}>
+            <h3>Recent Transactions</h3>
+            <div className={styles.transactionsList}>
+              <p className={styles.noTransactions}>No transactions yet</p>
+            </div>
+          </div>
         </div>
 
-        {cardDetails && (
-          <div className={styles.cardDetails}>
-            <h2>Card Created</h2>
-            <p><strong>Ghost Card ID:</strong> {cardDetails.ghost_card_id}</p>
-            <p><strong>Number:</strong> {cardDetails.stripe_card?.number}</p>
-            <p><strong>Last 4:</strong> {cardDetails.stripe_card?.last4}</p>
-            <p><strong>Exp:</strong> {cardDetails.stripe_card?.exp_month}/{cardDetails.stripe_card?.exp_year}</p>
-            <p><strong>CVC:</strong> {cardDetails.stripe_card?.cvc}</p>
+        <div className={styles.rightPanel}>
+          <div className={styles.simulationTool}>
+            <h2>Transaction Simulator</h2>
+            <div className={styles.simulationForm}>
+              <div className={styles.inputGroup}>
+                <label>Card Number</label>
+                <input 
+                  type="text" 
+                  value={`****${cardDetails.stripe_card.last4}`}
+                  disabled 
+                />
+              </div>
+              <div className={styles.inputGroup}>
+                <label>Amount (USD)</label>
+                <input 
+                  type="number" 
+                  value={simulationAmount}
+                  onChange={(e) => setSimulationAmount(e.target.value)}
+                  placeholder="Enter amount"
+                />
+              </div>
+              <div className={styles.inputGroup}>
+                <label>Merchant</label>
+                <select 
+                  value={simulationMerchant}
+                  onChange={(e) => setSimulationMerchant(e.target.value)}
+                >
+                  <option value="">Select merchant</option>
+                  {MERCHANTS.map((merchant, index) => (
+                    <option key={index} value={merchant}>
+                      {merchant}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button className={styles.simulateBtn}>
+                Simulate Transaction
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

@@ -10,3 +10,10 @@ yarn-debug.log*
 yarn-error.log*
 /dist
 /.vscode
+ghost-card-app/node_modules/
+Backend/node_modules/
+Backend/.env
+**/.env
+Backend/config/serviceAccountKey.json
+ghost-card-app/build/
+ghost-card-app/.next/

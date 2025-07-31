@@ -7,9 +7,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.navLeft h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .dashboard {
@@ -191,4 +197,108 @@
 .pending {
   background-color: #f59e0b;
   color: white;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalGroup {
+  margin-bottom: 1rem;
+}
+
+.modalGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.modalGroup input,
+.modalGroup select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.multiSelect {
+  height: 150px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancelBtn,
+.submitBtn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancelBtn {
+  background: transparent;
+  border: 1px solid #ddd;
+}
+
+.submitBtn {
+  background: #667eea;
+  color: white;
+  border: none;
+}
+
+.helpText {
+  display: block;
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.backBtn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateX(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.backBtn:active {
+  transform: translateX(0);
 }

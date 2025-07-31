@@ -19,9 +19,8 @@ const {
   updateCardAfterTransaction
 } = require("../services/rulesEngine");
 
-// POST /cards/charge - Simulate a transaction
-// POST /cards/charge - Simulate a transaction
-router.post("/cards/charge", async (req, res) => {
+// POST /transactions/charge - Simulate a transaction
+router.post("/charge", async (req, res) => {
   try {
     const { card_id, amount, merchant } = req.body;
     if (!card_id || !amount || !merchant) {
@@ -62,6 +61,7 @@ router.post("/cards/charge", async (req, res) => {
     res.json({
       approved: evaluation.approved,
       reason: evaluation.reason,
+      transaction_id: evaluation.approved ? `txn_${Date.now()}` : null,
       remaining_balance: evaluation.approved
         ? card.balance - transaction.amount
         : card.balance
@@ -72,13 +72,19 @@ router.post("/cards/charge", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// GET /cards/:card_id/transactions - List all transactions for a card
-router.get("/cards/:card_id/transactions", async (req, res) => {
+// GET /transactions/:card_id/history - List all transactions for a card
+router.get("/:card_id/history", async (req, res) => {
   try {
     const { card_id } = req.params;
 
+    // First, get the card to find the Firestore doc ID
+    const card = await getCardData(card_id);
+    if (!card) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+
     const transactionsSnap = await db.collection("transactions")
-      .where("ghost_card_id", "==", card_id)
+      .where("ghost_card_id", "==", card.id) // Use Firestore doc ID
       .orderBy("timestamp", "desc")
       .get();
 

@@ -240,65 +240,6 @@ async function deleteCard(req, res) {
 }
 
 
-async function chargeCard (req, res) {
-    try {
-        const { card_id, amount, merchant, currency = "usd" } = req.body;
-
-        if (!card_id || !amount || !merchant) {
-            return res.status(400).json({ error: "Missing required fields: card_id, amount, merchant" });
-        }
-
-        // 1️⃣ Get card data from Firestore
-        const cardData = await getCardData(card_id);
-        if (!cardData) {
-            return res.status(404).json({ error: "Card not found" });
-        }
-
-        // 2️⃣ Prepare transaction data
-        const transaction = {
-            card_id,
-            amount,
-            merchant,
-            currency
-        };
-
-        // 3️⃣ Evaluate transaction against rules
-        const evaluation = await evaluateTransaction(transaction, cardData);
-
-        if (!evaluation.approved) {
-            return res.status(403).json({
-                approved: false,
-                reason: evaluation.reason
-            });
-        }
-
-        // 4️⃣ Process transaction (simulate Stripe charge)
-        // In production, you'd create actual Stripe charge here
-
-        // 5️⃣ Update card after successful transaction
-        const updateSuccess = await updateCardAfterTransaction(cardData.id, transaction, cardData);
-
-        if (!updateSuccess) {
-            return res.status(500).json({ error: "Failed to update card after transaction" });
-        }
-
-        // 6️⃣ Return success response
-        res.json({
-            approved: true,
-            transaction_id: `txn_${Date.now()}`, // Mock transaction ID
-            amount,
-            merchant,
-            remaining_balance: cardData.balance - amount,
-            reason: evaluation.reason
-        });
-
-    } catch (error) {
-        console.error("Error charging card:", error.stack);
-        res.status(500).json({ error: error.message });
-    }
-}
-
-
 async function getGhostCards(req, res) {
     try {
         const { user_id } = req.query;
@@ -329,6 +270,5 @@ module.exports = {
     deactivateCard,
     updateCard,
     deleteCard,
-    chargeCard,
     getGhostCards
 }

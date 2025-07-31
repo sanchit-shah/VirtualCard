@@ -85,8 +85,14 @@ export default function GhostCardManagePage() {
   // Fetch card data on load
   useEffect(() => {
     fetchCardData();
-    fetchTransactions();
   }, [cardId]);
+
+  // Fetch transactions when cardData is available
+  useEffect(() => {
+    if (cardData) {
+      fetchTransactions();
+    }
+  }, [cardData]);
 
   const fetchCardData = async () => {
     const userId = localStorage.getItem('user_id');
@@ -105,8 +111,19 @@ export default function GhostCardManagePage() {
   };
 
   const fetchTransactions = async () => {
-    // TODO: Add transaction history endpoint
-    setTransactions([]);
+    if (!cardData) return;
+    
+    try {
+      const res = await fetch(`http://localhost:8080/transactions/${cardData.stripe_card_id}/history`);
+      const data = await res.json();
+      
+      if (data.success && data.transactions) {
+        setTransactions(data.transactions);
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      setTransactions([]);
+    }
   };
 
   const handleTransactionSimulation = async (e) => {
@@ -115,7 +132,7 @@ export default function GhostCardManagePage() {
 
     setSimulationLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/cards/charge', {
+      const res = await fetch('http://localhost:8080/transactions/charge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,8 +160,9 @@ export default function GhostCardManagePage() {
       setSimulationAmount('');
       setSimulationMerchant('');
 
-      // Refresh card data to get updated balance
+      // Refresh card data and transactions
       fetchCardData();
+      fetchTransactions();
 
     } catch (err) {
       console.error('Transaction error:', err);
@@ -292,7 +310,40 @@ export default function GhostCardManagePage() {
           <div className={styles.transactionsSection}>
             <h3>Recent Transactions</h3>
             <div className={styles.transactionsList}>
-              <p className={styles.noTransactions}>No transactions yet</p>
+              {transactions.length === 0 ? (
+                <p className={styles.noTransactions}>No transactions yet</p>
+              ) : (
+                transactions.map((transaction) => (
+                  <div key={transaction.id} className={styles.transactionItem}>
+                    <div className={styles.transactionInfo}>
+                      <span className={styles.merchant}>
+                        {transaction.merchant}
+                      </span>
+                      <span className={styles.amount}>
+                        ${transaction.amount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className={styles.transactionMeta}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className={`${styles.status} ${styles[transaction.status]}`}>
+                          {transaction.status}
+                        </span>
+                        <span className={styles.timestamp}>
+                          {transaction.timestamp?.toDate ? 
+                            transaction.timestamp.toDate().toLocaleDateString() : 
+                            new Date(transaction.timestamp).toLocaleDateString()
+                          }
+                        </span>
+                      </div>
+                      {transaction.status === 'rejected' && transaction.reason && (
+                        <span className={styles.rejectionReason}>
+                          ❌ {transaction.reason}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -300,12 +351,12 @@ export default function GhostCardManagePage() {
         <div className={styles.rightPanel}>
           <div className={styles.simulationTool}>
             <h2>Transaction Simulator</h2>
-            <div className={styles.simulationForm}>
+            <form className={styles.simulationForm} onSubmit={handleTransactionSimulation}>
               <div className={styles.inputGroup}>
                 <label>Card Number</label>
                 <input
                   type="text"
-                  value={`****${cardDetails.stripe_card.last4}`}
+                  value={cardData?.last4 ? `****${cardData.last4}` : '****----'}
                   disabled
                 />
               </div>
@@ -316,6 +367,7 @@ export default function GhostCardManagePage() {
                   value={simulationAmount}
                   onChange={(e) => setSimulationAmount(e.target.value)}
                   placeholder="Enter amount"
+                  required
                 />
               </div>
               <div className={styles.inputGroup}>
@@ -323,6 +375,7 @@ export default function GhostCardManagePage() {
                 <select
                   value={simulationMerchant}
                   onChange={(e) => setSimulationMerchant(e.target.value)}
+                  required
                 >
                   <option value="">Select merchant</option>
                   {MERCHANTS.map((merchant, index) => (
@@ -332,10 +385,14 @@ export default function GhostCardManagePage() {
                   ))}
                 </select>
               </div>
-              <button className={styles.simulateBtn}>
-                Simulate Transaction
+              <button 
+                type="submit" 
+                className={styles.simulateBtn}
+                disabled={simulationLoading || !simulationAmount || !simulationMerchant}
+              >
+                {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </main>

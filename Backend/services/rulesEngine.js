@@ -60,7 +60,7 @@ async function evaluateTransaction(transaction, card) {
  */
 function checkCardStatus(card) {
     if (!card || card.status !== "active") {
-        return { approved: false, reason: "Card is not active" };
+        return { approved: false, reason: "Card inactive" };
     }
     return { approved: true, reason: "Card status valid" };
 }
@@ -79,7 +79,7 @@ function checkMerchantRestrictions(transaction, card) {
 
     // Check if merchant is in allowed list
     if (!card.allowed_merchants.includes(transaction.merchant)) {
-        return { approved: false, reason: `Merchant ${transaction.merchant} not allowed` };
+        return { approved: false, reason: "Merchant not allowed" };
     }
 
     return { approved: true, reason: "Merchant allowed" };
@@ -104,15 +104,22 @@ function checkBalance(transaction, card) {
  * @returns {Object} - { approved: boolean, reason: string }
  */
 function checkExpiration(card) {
-    if (!card.expiration_date) {
-        return { approved: true, reason: "No expiration date set" };
-    }
-
     const now = new Date();
-    const expirationDate = new Date(card.expiration_date);
-
-    if (now > expirationDate) {
-        return { approved: false, reason: "Card has expired" };
+    
+    // Check expires_at field (Firestore Timestamp)
+    if (card.expires_at) {
+        const expirationDate = card.expires_at.toDate ? card.expires_at.toDate() : new Date(card.expires_at);
+        if (now > expirationDate) {
+            return { approved: false, reason: "Card expired" };
+        }
+    }
+    
+    // Fallback check for expiration_date field
+    if (card.expiration_date) {
+        const expirationDate = new Date(card.expiration_date);
+        if (now > expirationDate) {
+            return { approved: false, reason: "Card expired" };
+        }
     }
 
     return { approved: true, reason: "Card not expired" };
@@ -126,12 +133,12 @@ function checkExpiration(card) {
 function checkUsageRestrictions(card) {
     // Check if card is single-use and already used
     if (card.single_use && card.used) {
-        return { approved: false, reason: "Single-use card already used" };
+        return { approved: false, reason: "Single-use card exhausted" };
     }
 
     // Check if card has usage limit
     if (card.usage_limit && card.usage_count >= card.usage_limit) {
-        return { approved: false, reason: "Usage limit exceeded" };
+        return { approved: false, reason: "Usage limit reached" };
     }
 
     return { approved: true, reason: "Usage restrictions passed" };

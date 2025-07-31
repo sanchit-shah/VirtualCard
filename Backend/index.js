@@ -23,7 +23,7 @@ app.use(express.json());
 
 app.use('/users', userRoutes);
 app.use('/cards', cardRoutes);
-app.use('/', transactionRoutes);
+app.use('/transactions', transactionRoutes);
 // Default route for API info
 app.get("/about", (req, res) => {
   res.send("This is an API service for GhostCard.");

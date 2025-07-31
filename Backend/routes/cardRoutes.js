@@ -35,4 +35,24 @@ router.post("/create_ghost_cards", async (req, res) => {
 
 router.post("/create_ghost_cards/:card_id/deactivate", deactivateCard);
 
+router.get("/ghost_cards", async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: "Missing user_id" });
+
+    const cardsSnap = await db.collection("ghost_cards")
+      .where("user_id", "==", user_id)
+      .get();
+
+    const cards = cardsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, cards });
+  } catch (err) {
+    console.error("Error fetching ghost cards:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;

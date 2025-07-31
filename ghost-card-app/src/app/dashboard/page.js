@@ -193,11 +193,57 @@ export default function DashboardPage() {
         <div className={styles.accountsGrid}>
           {accounts.map((account, i) => (
             <div key={i} className={styles.accountCard}>
-              <h3>{account.type}</h3>
-              <p>{account.number}</p>
-              <p className={`${styles.balance} ${account.balance < 0 ? styles.negative : ''}`}>
-                ${Math.abs(account.balance).toLocaleString()}
-              </p>
+              <div>
+                <h3>
+                  {account.type}
+                  {account.type === 'Primary Checking' && (
+                    <span className={styles.accountBadge}>Primary</span>
+                  )}
+                </h3>
+                <p className={styles.accountNumber}>{account.number}</p>
+                <p className={`${styles.balance} ${account.balance < 0 ? styles.negative : styles.positive}`}>
+                  ${Math.abs(account.balance).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </p>
+              </div>
+              
+              <div className={styles.accountStats}>
+                <span className={styles.statItem}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 20V10M5 20V4M19 20v-8"/>
+                  </svg>
+                  <span className={styles.statValue}>Recent Activity</span>
+                </span>
+                <span className={styles.statItem}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 8v4l3 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>
+                  </svg>
+                  <span className={styles.statValue}>24h Change</span>
+                </span>
+              </div>
+              
+              <div className={styles.accountActions}>
+                <button className={styles.accountActionBtn}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                  </svg>
+                  Transfer
+                </button>
+                <button className={styles.accountActionBtn}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                  </svg>
+                  Pay
+                </button>
+                <button className={styles.accountActionBtn}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                  </svg>
+                  More
+                </button>
+              </div>
             </div>
           ))}
 
@@ -210,10 +256,22 @@ export default function DashboardPage() {
                 style={{ background: cardTheme.gradient }}
               >
                 <div className={styles.ghostCardContent}>
-                  <h3>{card.alias || "Ghost Card"}</h3>
-                  <p className={styles.ghostCardBalance}>Balance: ${card.balance || card.original_amount || 0}</p>
-                  <p>Merchants: {card.allowed_merchants?.slice(0, 2).map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ')}{card.allowed_merchants?.length > 2 ? '...' : ''}</p>
-                  <p>Expires: {new Date(card.expires_at._seconds * 1000).toLocaleDateString()}</p>
+                  <div className={styles.cardHeader}>
+                    <h3>{card.alias || `Ghost Card ${card.id.slice(-4)}`}</h3>
+                    <div className={styles.balanceContainer}>
+                      <span className={styles.balanceLabel}>Balance</span>
+                      <span className={styles.balanceAmount}>
+                        ${parseFloat(card.balance || card.amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.cardNumber}>
+                    •••• •••• •••• {card.last4 || '0000'}
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <span>Expires: {new Date(card.expires_at._seconds * 1000).toLocaleString()}</span>
+                    <span className={styles.cardType}>VIRTUAL</span>
+                  </div>
                   <div className={styles.cardActions}>
                     <button
                       onClick={() => window.location.href = `/ghost-card/${card.id}`}

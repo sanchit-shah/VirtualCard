@@ -4,7 +4,6 @@ const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const admin = require("firebase-admin");
 
-
 /**
  * Creates a new virtual card using Stripe Issuing and stores its information in Firestore.
  *
@@ -20,45 +19,107 @@ const admin = require("firebase-admin");
  * @returns {Promise<void>} Sends a JSON response with card details on success, or an error message on failure.
  */
 async function createCard(req, res) {
-    try {
-        const db = admin.firestore();
-        const { cardholder_id, allowed_merchants, balance, expiration_date, status } = req.body;
-        // Create Stripe card without spending controls
-        const card = await stripe.issuing.cards.create({
-            cardholder: cardholder_id,
-            currency: "usd",
-            type: "virtual"
-        });
+  try {
+    const db = admin.firestore();
+    const { user_id, amount, allowed_merchants, expires_at } = req.body;
 
-        // Store card info and allowed_merchants in Firestore
-        const cardDoc = await db.collection("ghost_cards").add({
-            card_id: card.id,
-            cardholder_id,
-            allowed_merchants,
-            balance,
-            expiration_date,
-            status,
-            created_at: admin.firestore.Timestamp.now()
-        });
-
-        res.json({
-            success: true,
-            card: card,
-            card_db_id: cardDoc.id,
-            cardholder_id: cardholder_id,
-            balance: balance,
-            allowed_merchants: allowed_merchants,
-            expiration_date: expiration_date,
-            status: status
-        });
-
-    } catch (error) {
-        console.error("Error creating card:", error);
-        res.status(500).json({ error: "Failed to create card" });
+    // 1️⃣ Get user from Firestore
+    const userSnap = await db.collection("users").doc(user_id).get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "User not found" });
     }
-};
+    const userData = userSnap.data();
 
+    if (!userData.stripe_cardholder_id) {
+      return res.status(400).json({ error: "User does not have a Stripe Cardholder ID" });
+    }
+
+    // 2️⃣ Create Stripe Virtual Card with spending controls
+    const card = await stripe.issuing.cards.create({
+      cardholder: userData.stripe_cardholder_id,
+      currency: "usd",
+      type: "virtual",
+      spending_controls: {
+        spending_limits: [{
+          amount: amount * 100, // cents
+          interval: "all_time"
+        }]
+      }
+    });
+
+    // 3️⃣ Retrieve full card details (test mode only)
+    const fullCard = await stripe.issuing.cards.retrieve(card.id, {
+      expand: ['number', 'cvc']
+    });
+
+    // 4️⃣ Save card info in Firestore
+    const cardRef = await db.collection("ghost_cards").add({
+      user_id,
+      stripe_card_id: card.id,
+      amount,
+      allowed_merchants,
+      expires_at: admin.firestore.Timestamp.fromDate(new Date(expires_at)),
+      status: "active",
+      last4: fullCard.last4,
+      exp_month: fullCard.exp_month,
+      exp_year: fullCard.exp_year
+    });
+
+    // 5️⃣ Return full card details (test mode)
+    res.json({
+      success: true,
+      ghost_card_id: cardRef.id,
+      stripe_card: {
+        number: fullCard.number, // Test mode only
+        last4: fullCard.last4,
+        exp_month: fullCard.exp_month,
+        exp_year: fullCard.exp_year,
+        cvc: fullCard.cvc
+      }
+    });
+
+  } catch (error) {
+    console.error("Error creating card:", error);
+    res.status(500).json({ error: "Failed to create card" });
+  }
+}
+
+
+async function deactivateCard(req, res) {
+  try {
+    const { card_id } = req.params;
+    const db = admin.firestore();
+
+    // 1️⃣ Cancel the card in Stripe
+    const updatedCard = await stripe.issuing.cards.update(card_id, {
+      status: "canceled" // or "inactive" if temporary freeze
+    });
+
+    // 2️⃣ Update status in Firestore
+    const cardsQuery = await db.collection("ghost_cards")
+      .where("stripe_card_id", "==", card_id)
+      .get();
+
+    const batch = db.batch();
+    cardsQuery.forEach(doc => {
+      batch.update(doc.ref, { status: updatedCard.status });
+    });
+    await batch.commit();
+
+    // 3️⃣ Respond to client
+    res.json({
+      success: true,
+      message: `Card ${card_id} has been ${updatedCard.status}`,
+      stripe_status: updatedCard.status
+    });
+
+  } catch (err) {
+    console.error("Error deactivating card:", err.stack);
+    res.status(500).json({ error: err.message });
+  }
+}
 // Export modules
 module.exports = {
     createCard,
+    deactivateCard
 }

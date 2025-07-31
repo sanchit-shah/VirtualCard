@@ -17,6 +17,7 @@ async function createStripeCardholder(data) {
             name: data.name,
             email: `${data.name.replace(/\s/g, "").toLowerCase()}@ghostcard.com`,
             type: "individual",
+            status: "active",
             billing: {
                 address: {
                     line1: "123 Main Street",

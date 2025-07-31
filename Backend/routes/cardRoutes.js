@@ -7,7 +7,7 @@ const admin = require("firebase-admin");
 require("dotenv").config();
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY); // ✅ Direct from env
-const { createCard, deactivateCard, chargeCard } = require("../controllers/cardController");
+const { createCard, deactivateCard, chargeCard, getGhostCards } = require("../controllers/cardController");
 
 const serviceAccount = require("../config/serviceAccountKey.json");
 // Initialize Firebase Admin (only once)
@@ -38,6 +38,15 @@ router.post("/create_ghost_cards/:card_id/deactivate", deactivateCard);
 router.post("/charge", async (req, res) => {
   try {
     await chargeCard(req, res);
+  } catch (err) {
+    console.error("Route error:", err.stack);
+    res.status(500).json({ error: err.message || "Unexpected error" });
+  }
+});
+
+router.get("/ghost_cards", async (req, res) => {
+  try {
+    await getGhostCards(req, res);
   } catch (err) {
     console.error("Route error:", err.stack);
     res.status(500).json({ error: err.message || "Unexpected error" });

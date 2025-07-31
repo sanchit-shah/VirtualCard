@@ -26,22 +26,22 @@ async function createCard(req, res) {
 
     // 1️⃣ Get user from Firestore (search by user_id or stripe_cardholder_id)
     let userSnap;
-    
+
     // Try to find by Firestore document ID first
     userSnap = await db.collection("users").doc(user_id).get();
-    
+
     // If not found, try to find by stripe_cardholder_id
     if (!userSnap.exists) {
       const userQuery = await db.collection("users")
         .where("stripe_cardholder_id", "==", user_id)
         .limit(1)
         .get();
-      
+
       if (!userQuery.empty) {
         userSnap = userQuery.docs[0];
       }
     }
-    
+
     if (!userSnap.exists) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -82,6 +82,14 @@ async function createCard(req, res) {
       exp_month: fullCard.exp_month,
       exp_year: fullCard.exp_year
     });
+
+    // 4️⃣ Save card id to user's card list and increase open card count by 1
+    await db.collection("users").doc(userSnap.id).update({
+      ghost_cards: admin.firestore.FieldValue.arrayUnion(cardRef.id),
+      open_card_count: admin.firestore.FieldValue.increment(1),
+      card_ids : admin.firestore.FieldValue.arrayUnion(card.id)
+    });
+
 
     // 5️⃣ Return full card details (test mode)
     res.json({
@@ -197,9 +205,34 @@ async function chargeCard (req, res) {
 }
 
 
+async function getGhostCards(req, res) {
+    try {
+        const { user_id } = req.query;
+        if (!user_id) {
+            return res.status(400).json({ error: "Missing user_id" });
+        }
+
+        const db = admin.firestore();
+        const cardsSnap = await db.collection("ghost_cards")
+            .where("user_id", "==", user_id)
+            .get();
+
+        const cards = cardsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        res.json({ success: true, cards });
+    } catch (error) {
+        console.error("Error fetching ghost cards:", error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
 // Export modules
 module.exports = {
     createCard,
     deactivateCard,
-    chargeCard
+    chargeCard,
+    getGhostCards
 }

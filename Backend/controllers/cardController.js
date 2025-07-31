@@ -22,7 +22,7 @@ const { evaluateTransaction, getCardData, updateCardAfterTransaction } = require
 async function createCard(req, res) {
   try {
     const db = admin.firestore();
-    const { user_id, amount, allowed_merchants, expires_at } = req.body;
+    const { user_id, amount, allowed_merchants, expires_at, alias, color_theme } = req.body;
 
     // 1️⃣ Get user from Firestore (search by user_id or stripe_cardholder_id)
     let userSnap;
@@ -80,7 +80,9 @@ async function createCard(req, res) {
       status: "active",
       last4: fullCard.last4,
       exp_month: fullCard.exp_month,
-      exp_year: fullCard.exp_year
+      exp_year: fullCard.exp_year,
+      alias: alias || `Ghost Card ${Date.now().toString().slice(-4)}`, // Save alias or generate default
+      color_theme: color_theme || 'ocean' // Save color theme or default to ocean
     });
 
     // 4️⃣ Save card id to user's card list and increase open card count by 1
@@ -143,6 +145,98 @@ async function deactivateCard(req, res) {
     console.error("Error deactivating card:", err.stack);
     res.status(500).json({ error: err.message });
   }
+}
+
+
+async function updateCard(req, res) {
+    try {
+        const { card_id } = req.params;
+        const { alias, allowed_merchants, expires_at, color_theme } = req.body;
+        const db = admin.firestore();
+
+        // 1️⃣ Find the ghost card in Firestore
+        const cardsQuery = await db.collection("ghost_cards")
+            .where("stripe_card_id", "==", card_id)
+            .limit(1)
+            .get();
+
+        if (cardsQuery.empty) {
+            return res.status(404).json({ error: "Card not found" });
+        }
+
+        const cardDoc = cardsQuery.docs[0];
+
+        // 2️⃣ Prepare update data
+        const updateData = {};
+
+        if (alias !== undefined) updateData.alias = alias;
+        if (allowed_merchants !== undefined) updateData.allowed_merchants = allowed_merchants;
+        if (color_theme !== undefined) updateData.color_theme = color_theme;
+        if (expires_at !== undefined) {
+            updateData.expires_at = admin.firestore.Timestamp.fromDate(new Date(expires_at));
+        }
+
+        // 3️⃣ Update the card document in Firestore
+        await cardDoc.ref.update(updateData);
+
+        // 4️⃣ Return success response
+        res.json({
+            success: true,
+            message: `Card rules updated successfully`,
+            updated_fields: Object.keys(updateData)
+        });
+
+    } catch (err) {
+        console.error("Error updating card:", err.stack);
+        res.status(500).json({ error: err.message });
+    }
+}
+
+
+async function deleteCard(req, res) {
+    try {
+        const { card_id } = req.params;
+        const db = admin.firestore();
+
+        // 1️⃣ Find the ghost card in Firestore
+        const cardsQuery = await db.collection("ghost_cards")
+            .where("stripe_card_id", "==", card_id)
+            .limit(1)
+            .get();
+
+        if (cardsQuery.empty) {
+            return res.status(404).json({ error: "Card not found" });
+        }
+
+        const cardDoc = cardsQuery.docs[0];
+        const cardData = cardDoc.data();
+
+        // 2️⃣ Cancel/delete the card in Stripe
+        await stripe.issuing.cards.update(card_id, {
+            status: "canceled"
+        });
+
+        // 3️⃣ Remove card from user's card list and decrease count
+        await db.collection("users").doc(cardData.user_id).update({
+            ghost_cards: admin.firestore.FieldValue.arrayRemove(cardDoc.id),
+            open_card_count: admin.firestore.FieldValue.increment(-1),
+            card_ids: admin.firestore.FieldValue.arrayRemove(card_id)
+        });
+
+        // 4️⃣ Delete the card document from Firestore
+        await cardDoc.ref.delete();
+
+        // 5️⃣ Respond to client
+        res.json({
+            success: true,
+            message: `Card ${cardData.alias || 'Ghost Card'} has been deleted`,
+            deleted_card_id: card_id
+        });
+
+    } catch (err) {
+        console.error("Error deleting card:", err.stack);
+        res.status(500).json({ error: err.message });
+    }
 }
 
 
@@ -233,6 +327,8 @@ async function getGhostCards(req, res) {
 module.exports = {
     createCard,
     deactivateCard,
+    updateCard,
+    deleteCard,
     chargeCard,
     getGhostCards
 }

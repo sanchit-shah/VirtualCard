@@ -8,6 +8,58 @@ const MERCHANTS = [
   'amazon', 'spotify', 'netflix', 'walmart', 'target',
   'apple', 'google play', 'uber', 'doordash', 'grubhub',
   'best buy', 'ebay', 'etsy', 'steam', 'playstation',
+  'xbox', 'hulu', 'disney+', 'adobe', 'microsoft',
+];
+
+const CARD_THEMES = [
+  {
+    id: 'ocean',
+    name: 'Ocean Blue',
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    preview: '#667eea'
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Orange',
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    preview: '#f5576c'
+  },
+  {
+    id: 'forest',
+    name: 'Forest Green',
+    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    preview: '#4facfe'
+  },
+  {
+    id: 'royal',
+    name: 'Royal Purple',
+    gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    preview: '#a8edea'
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight Black',
+    gradient: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
+    preview: '#434343'
+  },
+  {
+    id: 'cherry',
+    name: 'Cherry Blossom',
+    gradient: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+    preview: '#fcb69f'
+  },
+  {
+    id: 'emerald',
+    name: 'Emerald Dream',
+    gradient: 'linear-gradient(135deg, #a8e6cf 0%, #88d8a3 100%)',
+    preview: '#88d8a3'
+  },
+  {
+    id: 'cosmic',
+    name: 'Cosmic Purple',
+    gradient: 'linear-gradient(135deg, #667db6 0%, #0082c8 48%, #0082c8 100%)',
+    preview: '#667db6'
+  }
 ];
 
 export default function GhostCardManagePage() {
@@ -26,7 +78,8 @@ export default function GhostCardManagePage() {
     expirationDate: '',
     expirationTime: '',
     alias: '',
-    merchants: []
+    merchants: [],
+    colorTheme: 'ocean'
   });
 
   // Fetch card data on load
@@ -102,32 +155,36 @@ export default function GhostCardManagePage() {
 
   const handleEditRulesSubmit = async (e) => {
     e.preventDefault();
-    const userId = localStorage.getItem('user_id');
-    if (!userId) return;
+    if (!cardData) return;
 
     try {
       const expiryISO = new Date(
         `${editRulesData.expirationDate}T${editRulesData.expirationTime}:00`
       ).toISOString();
 
-      const res = await fetch(`http://localhost:8080/cards/update_ghost_card/${cardId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(`http://localhost:8080/cards/${cardData.stripe_card_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: userId,
+          alias: editRulesData.alias,
           allowed_merchants: editRulesData.merchants,
           expires_at: expiryISO,
-          alias: editRulesData.alias
+          color_theme: editRulesData.colorTheme
         })
       });
 
-      if (!res.ok) throw new Error("Failed to update Ghost Card");
+      if (!res.ok) throw new Error('Failed to update card rules');
 
+      const data = await res.json();
+      alert(data.message);
+
+      // Close modal and refresh card data
       setShowEditRulesModal(false);
-      fetchCardData(); // Refresh card data
+      fetchCardData();
+
     } catch (err) {
-      console.error(err);
-      alert("Error updating Ghost Card");
+      console.error('Error updating card rules:', err);
+      alert('Error updating card rules');
     }
   };
 
@@ -135,16 +192,21 @@ export default function GhostCardManagePage() {
   if (!cardData) return <p>Card not found</p>;
 
   // Extract card properties
-  const alias = `Ghost Card ${cardData.id.slice(-4)}`;
+  const alias = cardData.alias || `Ghost Card ${cardData.id.slice(-4)}`;
   const amount = cardData.balance || 0;
   // Update this line to match dashboard format
   const expiresAt = cardData.expires_at ? new Date(cardData.expires_at._seconds * 1000).toLocaleString() : 'N/A';
-  const merchants = cardData.allowed_merchants ? cardData.allowed_merchants.join(', ') : 'No restrictions';
+  const merchants = cardData.allowed_merchants ?
+    cardData.allowed_merchants.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ') :
+    'No restrictions';
   const cardDetails = {
     stripe_card: {
       last4: cardData.last4 || '0000'
     }
   };
+
+  // Get the card theme
+  const cardTheme = CARD_THEMES.find(theme => theme.id === cardData.color_theme) || CARD_THEMES[0];
 
   return (
     <div className={styles.container}>
@@ -152,18 +214,18 @@ export default function GhostCardManagePage() {
         <div className={styles.navLeft}>
           <h1>Ghost Card Management</h1>
         </div>
-        <button 
-          className={styles.backBtn} 
+        <button
+          className={styles.backBtn}
           onClick={() => window.location.href = '/dashboard'}
         >
-          <svg 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -174,7 +236,7 @@ export default function GhostCardManagePage() {
 
       <main className={styles.dashboard}>
         <div className={styles.leftPanel}>
-          <div className={styles.virtualCard}>
+          <div className={styles.virtualCard} style={{ background: cardTheme.gradient }}>
             <div className={styles.cardHeader}>
               <h3>{alias}</h3>
               <div className={styles.balanceContainer}>
@@ -202,8 +264,9 @@ export default function GhostCardManagePage() {
                 setEditRulesData({
                   expirationDate: currentDate.toISOString().split('T')[0],
                   expirationTime: currentDate.toTimeString().split(':').slice(0, 2).join(':'),
-                  alias: alias,
-                  merchants: cardData.allowed_merchants || []
+                  alias: cardData.alias || `Ghost Card ${cardData.id.slice(-4)}`,
+                  merchants: cardData.allowed_merchants || [],
+                  colorTheme: cardData.color_theme || 'ocean'
                 });
                 setShowEditRulesModal(true);
               }}>
@@ -264,7 +327,7 @@ export default function GhostCardManagePage() {
                   <option value="">Select merchant</option>
                   {MERCHANTS.map((merchant, index) => (
                     <option key={index} value={merchant}>
-                      {merchant}
+                      {merchant.charAt(0).toUpperCase() + merchant.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -284,11 +347,11 @@ export default function GhostCardManagePage() {
             <form onSubmit={handleEditRulesSubmit}>
               <div className={styles.modalGroup}>
                 <label>Expiration Date</label>
-                <input 
+                <input
                   type="date"
                   value={editRulesData.expirationDate}
                   onChange={(e) => setEditRulesData({
-                    ...editRulesData, 
+                    ...editRulesData,
                     expirationDate: e.target.value
                   })}
                   required
@@ -297,11 +360,11 @@ export default function GhostCardManagePage() {
 
               <div className={styles.modalGroup}>
                 <label>Expiration Time</label>
-                <input 
+                <input
                   type="time"
                   value={editRulesData.expirationTime}
                   onChange={(e) => setEditRulesData({
-                    ...editRulesData, 
+                    ...editRulesData,
                     expirationTime: e.target.value
                   })}
                   required
@@ -310,16 +373,40 @@ export default function GhostCardManagePage() {
 
               <div className={styles.modalGroup}>
                 <label>Alias/Nickname</label>
-                <input 
+                <input
                   type="text"
                   value={editRulesData.alias}
                   onChange={(e) => setEditRulesData({
-                    ...editRulesData, 
+                    ...editRulesData,
                     alias: e.target.value
                   })}
                   placeholder="e.g., Netflix Monthly"
                   required
                 />
+              </div>
+
+              <div className={styles.modalGroup}>
+                <label>Card Theme</label>
+                <div className={styles.colorThemeGrid}>
+                  {CARD_THEMES.map((theme) => (
+                    <label key={theme.id} className={styles.colorThemeOption}>
+                      <input
+                        type="radio"
+                        name="editColorTheme"
+                        value={theme.id}
+                        checked={editRulesData.colorTheme === theme.id}
+                        onChange={(e) => setEditRulesData({...editRulesData, colorTheme: e.target.value})}
+                        className={styles.colorThemeRadio}
+                      />
+                      <div
+                        className={styles.colorThemePreview}
+                        style={{ background: theme.gradient }}
+                      >
+                        <span className={styles.colorThemeName}>{theme.name}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className={styles.modalGroup}>
@@ -335,16 +422,31 @@ export default function GhostCardManagePage() {
                   className={styles.multiSelect}
                 >
                   {MERCHANTS.map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option
+                      key={m}
+                      value={m}
+                      style={{
+                        backgroundColor: editRulesData.merchants.includes(m) ? '#3182ce' : 'transparent',
+                        color: editRulesData.merchants.includes(m) ? 'white' : 'inherit'
+                      }}
+                    >
+                      {editRulesData.merchants.includes(m) ? '✓ ' : ''}{m.charAt(0).toUpperCase() + m.slice(1)}
+                    </option>
                   ))}
                 </select>
-                <small className={styles.helpText}>Hold Ctrl (Cmd on Mac) to select multiple</small>
+                <small className={styles.helpText}>
+                  Current selections: {editRulesData.merchants.length > 0 ?
+                    editRulesData.merchants.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ') :
+                    'None selected'
+                  }
+                  <br />Hold Ctrl (Cmd on Mac) to select multiple
+                </small>
               </div>
 
               <div className={styles.modalActions}>
-                <button 
-                  type="button" 
-                  className={styles.cancelBtn} 
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
                   onClick={() => setShowEditRulesModal(false)}
                 >
                   Cancel

@@ -218,7 +218,7 @@
   border-radius: 12px;
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
 }
 
@@ -301,4 +301,123 @@
 
 .backBtn:active {
   transform: translateX(0);
+}
+
+.multiSelect {
+  height: 150px !important;
+  overflow-y: auto;
+  border: 2px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 0.5rem !important;
+  font-size: 0.9rem !important;
+}
+
+.multiSelect:focus {
+  border-color: #3182ce !important;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1) !important;
+}
+
+.multiSelect option {
+  padding: 0.5rem !important;
+  margin: 2px 0 !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+}
+
+.multiSelect option:hover {
+  background-color: #f0f9ff !important;
+}
+
+.helpText {
+  display: block;
+  color: #718096;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.colorThemeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f9fafb;
+}
+
+.colorThemeOption {
+  cursor: pointer;
+  position: relative;
+}
+
+.colorThemeRadio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.colorThemePreview {
+  height: 50px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.25rem;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.colorThemePreview::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.colorThemeOption:hover .colorThemePreview::before {
+  opacity: 1;
+}
+
+.colorThemeRadio:checked + .colorThemePreview {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+  transform: scale(1.02);
+}
+
+.colorThemeRadio:checked + .colorThemePreview::after {
+  content: '✓';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: white;
+  color: #3182ce;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.colorThemeName {
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
+  line-height: 1.2;
 }

@@ -73,7 +73,7 @@ async function createCard(req, res) {
     const cardRef = await db.collection("ghost_cards").add({
       user_id,
       stripe_card_id: card.id,
-      balance: amount, // Store as balance for rules engine
+      balance: Number(amount), // Ensure this is a number
       original_amount: amount, // Keep original amount field for reference
       allowed_merchants,
       expires_at: admin.firestore.Timestamp.fromDate(new Date(expires_at)),

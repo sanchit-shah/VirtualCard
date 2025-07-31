@@ -8,6 +8,7 @@ const cors = require('cors');
 const cardRoutes = require("./routes/cardRoutes");
 const userRoutes = require('./routes/userRoutes');
 const serviceAccount = require("./config/serviceAccountKey.json");
+const transactionRoutes = require("./routes/transactionRoutes");
 const db = admin.firestore();
 
 // Initialize Firebase Admin (only once)
@@ -22,7 +23,7 @@ app.use(express.json());
 
 app.use('/users', userRoutes);
 app.use('/cards', cardRoutes);
-
+app.use('/', transactionRoutes);
 // Default route for API info
 app.get("/about", (req, res) => {
   res.send("This is an API service for GhostCard.");

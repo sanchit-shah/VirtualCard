@@ -187,18 +187,6 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
         // Update card data
         await db.collection("ghost_cards").doc(cardDocId).update(updates);
 
-        // Log transaction to transactions collection
-        await db.collection("transactions").add({
-            card_id: transaction.card_id,
-            ghost_card_id: cardDocId,
-            amount: transaction.amount,
-            merchant: transaction.merchant,
-            currency: transaction.currency,
-            status: "approved",
-            timestamp: admin.firestore.Timestamp.now(),
-            remaining_balance: card.balance - transaction.amount
-        });
-
         return true;
     } catch (error) {
         console.error("Error updating card after transaction:", error);

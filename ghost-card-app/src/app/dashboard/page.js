@@ -332,14 +332,35 @@ export default function DashboardPage() {
 
                 <div className={styles.modalGroup}>
                   <label>Amount ($)</label>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={ghostCardData.amount}
-                    onChange={(e) => setGhostCardData({...ghostCardData, amount: e.target.value})}
-                    required
-                  />
+                  <div className={styles.amountContainer}>
+                    <input
+                      type="text" // Changed from number to text
+                      value={`$${parseFloat(ghostCardData.amount || 0).toFixed(2)}`}
+                      onChange={(e) => {
+                        // Strip non-numeric characters and convert to number
+                        const value = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
+                        if (!isNaN(value)) {
+                          const clampedValue = Math.min(1000, Math.max(10, value));
+                          setGhostCardData({...ghostCardData, amount: clampedValue.toString()});
+                        }
+                      }}
+                      required
+                      className={styles.amountInput}
+                    />
+                    <input
+                      type="range"
+                      min="10"
+                      max="1000"
+                      step="10"
+                      value={ghostCardData.amount || 10}
+                      onChange={(e) => setGhostCardData({...ghostCardData, amount: e.target.value})}
+                      className={styles.amountSlider}
+                    />
+                    <div className={styles.sliderLabels}>
+                      <span>$10.00</span>
+                      <span>$1,000.00</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className={styles.modalGroup}>

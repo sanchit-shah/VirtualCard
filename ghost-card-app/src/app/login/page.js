@@ -5,24 +5,51 @@ import styles from './styles.module.css';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Test credentials
-    if (username === 'testuser' && password === 'testpass') {
+    setLoading(true);
+    setError('');
+
+    try {
+      // 1️⃣ Call backend to create user
+      const res = await fetch('http://localhost:8080/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: username,
+          total_balance: 1000 // default for demo
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to create user');
+      }
+
+      const data = await res.json();
+
+      // 2️⃣ Store user details for later API calls
+      localStorage.setItem('user_id', data.user_id);
+      localStorage.setItem('stripe_cardholder_id', data.stripe_cardholder_id);
+
+      // 3️⃣ Redirect to dashboard
       router.push('/dashboard');
-    } else {
-      setError('Invalid credentials. Please try again.');
+
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Could not create user. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.loginBox}>
-        <h1>Welcome Back</h1>
+        <h1>Enter Username</h1>
         <form onSubmit={handleLogin}>
           <div className={styles.inputGroup}>
             <label>Username</label>
@@ -34,19 +61,9 @@ export default function LoginPage() {
               placeholder="Enter your username"
             />
           </div>
-          <div className={styles.inputGroup}>
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-            />
-          </div>
           {error && <p className={styles.error}>{error}</p>}
-          <button className={styles.button} type="submit">
-            Sign In
+          <button className={styles.button} type="submit" disabled={loading}>
+            {loading ? 'Creating User...' : 'Continue'}
           </button>
         </form>
       </div>

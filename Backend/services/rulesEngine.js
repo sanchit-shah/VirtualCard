@@ -170,28 +170,45 @@ async function getCardData(cardId) {
  * @returns {boolean} - Success status
  */
 async function updateCardAfterTransaction(cardDocId, transaction, card) {
-    try {
-        const db = admin.firestore();
-        const updates = {
-            balance: card.balance - transaction.amount,
-            usage_count: (card.usage_count || 0) + 1,
-            last_transaction: admin.firestore.Timestamp.now()
-        };
+  try {
+    const db = admin.firestore();
 
-        // Mark as used if single-use card
-        if (card.single_use) {
-            updates.used = true;
-            updates.status = "canceled"; // Auto-cancel after use
-        }
+    const currentBalance = typeof card.balance === "number" ? card.balance : parseFloat(card.balance);
+    const deduction = typeof transaction.amount === "number" ? transaction.amount : parseFloat(transaction.amount);
 
-        // Update card data
-        await db.collection("ghost_cards").doc(cardDocId).update(updates);
+    const updates = {
+      balance: currentBalance - deduction,
+      usage_count: (card.usage_count || 0) + 1,
+      last_transaction: admin.firestore.Timestamp.now()
+    };
 
-        return true;
-    } catch (error) {
-        console.error("Error updating card after transaction:", error);
-        return false;
+    // Mark as used if single-use card
+    if (card.single_use) {
+      updates.used = true;
+      updates.status = "canceled"; // Auto-cancel after use
     }
+
+    // Update card data in ghost_cards
+    await db.collection("ghost_cards").doc(cardDocId).update(updates);
+
+    // ✅ Log approved transaction in transactions collection
+    await db.collection("transactions").add({
+      card_id: transaction.card_id,         // Stripe card ID
+      ghost_card_id: cardDocId,             // Firestore doc ID
+      amount: transaction.amount,
+      merchant: transaction.merchant,
+      currency: transaction.currency,
+      status: "approved",
+      reason: "Transaction approved",
+      timestamp: admin.firestore.Timestamp.now(),
+      remaining_balance: currentBalance - deduction
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error updating card after transaction:", error);
+    return false;
+  }
 }
 
 module.exports = {

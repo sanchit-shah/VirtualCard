@@ -42,47 +42,30 @@ router.post("/cards/charge", async (req, res) => {
 
     const evaluation = await evaluateTransaction(transaction, card);
 
-    // Always log transaction regardless of approval
-    const transactionData = {
-      card_id,
-      ghost_card_id: card.id,
-      amount: transaction.amount,
-      merchant,
-      currency: transaction.currency,
-      status: evaluation.approved ? "approved" : "rejected",
+    if (evaluation.approved) {
+      await updateCardAfterTransaction(card.id, transaction, card);
+    } else {
+      // ✅ Log rejected transaction
+      await db.collection("transactions").add({
+        card_id: transaction.card_id,
+        ghost_card_id: card.id, // Firestore doc ID
+        amount: transaction.amount,
+        merchant: transaction.merchant,
+        currency: transaction.currency,
+        status: "rejected",
+        reason: evaluation.reason || "Rejected by rules engine",
+        timestamp: admin.firestore.Timestamp.now(),
+        remaining_balance: card.balance
+      });
+    }
+
+    res.json({
+      approved: evaluation.approved,
       reason: evaluation.reason,
-      timestamp: admin.firestore.Timestamp.now(),
       remaining_balance: evaluation.approved
         ? card.balance - transaction.amount
         : card.balance
-    };
-
-    await db.collection("transactions").add(transactionData);
-
-
-    
-    // PROBLEM AREA DOESNT LOG UNAPPROVED TRANSACTIONS
-
-    if (evaluation.approved) {
-      await updateCardAfterTransaction(card.id, transaction, card);
-    }
-    else {
-        console.log("Logging rejected transaction for card:", card);
-
-        await db.collection("transactions").add({
-            card_id: transaction.card_id,
-            ghost_card_id: card.id, // Ensure this matches what GET uses
-            amount: transaction.amount,
-            merchant: transaction.merchant,
-            currency: transaction.currency,
-            status: "rejected",
-            reason: evaluation.reason || "Rejected by rules engine",
-            timestamp: admin.firestore.Timestamp.now(),
-            remaining_balance: card.balance
-        });
-
-        console.log("Rejected transaction logged.");
-    }           
+    });
 
   } catch (err) {
     console.error("Transaction simulation error:", err);

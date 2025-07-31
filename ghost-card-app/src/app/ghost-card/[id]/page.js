@@ -13,7 +13,7 @@ const MERCHANTS = [
 export default function GhostCardManagePage() {
   const params = useParams();
   const cardId = params.id;
-  
+
   // Real state from backend
   const [cardData, setCardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function GhostCardManagePage() {
   const handleTransactionSimulation = async (e) => {
     e.preventDefault();
     if (!cardData) return;
-    
+
     setSimulationLoading(true);
     try {
       const res = await fetch('http://localhost:8080/cards/charge', {
@@ -66,7 +66,7 @@ export default function GhostCardManagePage() {
       });
 
       const result = await res.json();
-      
+
       // Add transaction to list (approved or rejected)
       const newTransaction = {
         id: Date.now(),
@@ -76,16 +76,16 @@ export default function GhostCardManagePage() {
         reason: result.reason,
         timestamp: new Date().toISOString()
       };
-      
+
       setTransactions(prev => [newTransaction, ...prev]);
-      
+
       // Reset form
       setSimulationAmount('');
       setSimulationMerchant('');
-      
+
       // Refresh card data to get updated balance
       fetchCardData();
-      
+
     } catch (err) {
       console.error('Transaction error:', err);
     } finally {
@@ -174,16 +174,16 @@ export default function GhostCardManagePage() {
             <div className={styles.simulationForm}>
               <div className={styles.inputGroup}>
                 <label>Card Number</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={`****${cardDetails.stripe_card.last4}`}
-                  disabled 
+                  disabled
                 />
               </div>
               <div className={styles.inputGroup}>
                 <label>Amount (USD)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={simulationAmount}
                   onChange={(e) => setSimulationAmount(e.target.value)}
                   placeholder="Enter amount"
@@ -191,7 +191,7 @@ export default function GhostCardManagePage() {
               </div>
               <div className={styles.inputGroup}>
                 <label>Merchant</label>
-                <select 
+                <select
                   value={simulationMerchant}
                   onChange={(e) => setSimulationMerchant(e.target.value)}
                 >

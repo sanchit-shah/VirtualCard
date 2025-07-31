@@ -15,21 +15,26 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // 1️⃣ Call backend to create user
+      // 1️⃣ Call backend to login/create user
       const res = await fetch('http://localhost:8080/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: username,
-          total_balance: 1000 // default for demo
+          name: username
         })
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create user');
+        throw new Error('Failed to login user');
       }
 
       const data = await res.json();
+
+      if (data.is_existing_user) {
+        console.log(`Welcome back! You have ${data.open_card_count} cards.`);
+      } else {
+        console.log("Welcome to VirtualCard!");
+      }
 
       // 2️⃣ Store user details for later API calls
       localStorage.setItem('user_id', data.user_id);
@@ -40,7 +45,7 @@ export default function LoginPage() {
 
     } catch (err) {
       console.error('Login error:', err);
-      setError('Could not create user. Please try again.');
+      setError('Could not login. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +68,7 @@ export default function LoginPage() {
           </div>
           {error && <p className={styles.error}>{error}</p>}
           <button className={styles.button} type="submit" disabled={loading}>
-            {loading ? 'Creating User...' : 'Continue'}
+            {loading ? 'Logging in...' : 'Continue'}
           </button>
         </form>
       </div>

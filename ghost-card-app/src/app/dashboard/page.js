@@ -127,9 +127,9 @@ export default function DashboardPage() {
           {ghostCards.map((card) => (
             <div key={card.id} className={styles.accountCard}>
               <h3>{card.alias || "Ghost Card"}</h3>
-              <p>Amount: ${card.amount}</p>
+              <p>Balance: ${card.balance || card.original_amount || 0}</p>
               <p>Expires: {new Date(card.expires_at._seconds * 1000).toLocaleString()}</p>
-              <button 
+              <button
                 onClick={() => window.location.href = `/ghost-card/${card.id}`}
                 className={styles.actionButton}
               >
@@ -146,7 +146,7 @@ export default function DashboardPage() {
               <form onSubmit={handleGhostCardSubmit}>
                 <div className={styles.modalGroup}>
                   <label>Source Account</label>
-                  <select 
+                  <select
                     value={ghostCardData.sourceAccount}
                     onChange={(e) => setGhostCardData({...ghostCardData, sourceAccount: e.target.value})}
                     required
@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
                 <div className={styles.modalGroup}>
                   <label>Expiration Date</label>
-                  <input 
+                  <input
                     type="date"
                     value={ghostCardData.expirationDate}
                     onChange={(e) => setGhostCardData({...ghostCardData, expirationDate: e.target.value})}
@@ -169,7 +169,7 @@ export default function DashboardPage() {
 
                 <div className={styles.modalGroup}>
                   <label>Expiration Time</label>
-                  <input 
+                  <input
                     type="time"
                     value={ghostCardData.expirationTime}
                     onChange={(e) => setGhostCardData({...ghostCardData, expirationTime: e.target.value})}
@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
                 <div className={styles.modalGroup}>
                   <label>Amount ($)</label>
-                  <input 
+                  <input
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -191,7 +191,7 @@ export default function DashboardPage() {
 
                 <div className={styles.modalGroup}>
                   <label>Alias/Nickname</label>
-                  <input 
+                  <input
                     type="text"
                     value={ghostCardData.alias}
                     onChange={(e) => setGhostCardData({...ghostCardData, alias: e.target.value})}

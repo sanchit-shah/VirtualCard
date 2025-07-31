@@ -77,8 +77,34 @@ async function createUser(req, res) {
             return res.status(400).json({ error: "Missing name" });
         }
 
+        // Check for existing user
+        const db = admin.firestore();
+        const existingUserQuery = await db.collection("users")
+            .where("name", "==", name)
+            .limit(1)
+            .get();
+
+        if (!existingUserQuery.empty) {
+            // Return existing user
+            const userDoc = existingUserQuery.docs[0];
+            const userData = userDoc.data();
+
+            return res.json({
+                success: true,
+                user_id: userDoc.id,
+                stripe_cardholder_id: userData.stripe_cardholder_id,
+                card_ids: userData.card_ids || [],
+                open_card_count: userData.open_card_count || 0,
+                created_at: userData.created_at,
+                is_existing_user: true,
+                message: `Welcome back, ${name}!`
+            });
+        }
+
+
         // Create Stripe Cardholder
         const cardholder = await createStripeCardholder({ name });
+
 
         // Create Firestore user
         const userRef = await createDatabaseUser({
@@ -95,7 +121,9 @@ async function createUser(req, res) {
             stripe_cardholder_id: cardholder.id,
             card_ids: [],
             open_card_count: 0,
-            created_at: admin.firestore.Timestamp.now()
+            created_at: admin.firestore.Timestamp.now(),
+            is_existing_user: false,
+            message: `Welcome to VirtualCard, ${name}!`
         });
     } catch (err) {
         console.error("Error creating user:", err.stack);

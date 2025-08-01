@@ -22,7 +22,24 @@ const { evaluateTransaction, getCardData, updateCardAfterTransaction } = require
 async function createCard(req, res) {
   try {
     const db = admin.firestore();
-    const { user_id, amount, allowed_merchants, expires_at, alias, color_theme } = req.body;
+    const { user_id, amount, allowed_merchants, expires_at, alias, color_theme, single_use } = req.body;
+
+    // Validate required fields
+    if (!user_id) {
+      return res.status(400).json({ error: "user_id is required" });
+    }
+
+    // Ensure amount is a valid number (including 0)
+    const parsedAmount = parseFloat(amount);
+    if (amount === '' || isNaN(parsedAmount) || parsedAmount < 0) {
+      return res.status(400).json({ error: "amount must be $0.00 or greater" });
+    }
+
+    if (!expires_at) {
+      return res.status(400).json({ error: "expires_at is required" });
+    }
+
+    console.log("Creating card with amount:", parsedAmount, "cents will be:", parsedAmount * 100);
 
     // 1️⃣ Get user from Firestore (search by user_id or stripe_cardholder_id)
     let userSnap;
@@ -52,17 +69,23 @@ async function createCard(req, res) {
     }
 
     // 2️⃣ Create Stripe Virtual Card with spending controls
-    const card = await stripe.issuing.cards.create({
+    const cardConfig = {
       cardholder: userData.stripe_cardholder_id,
       currency: "usd",
-      type: "virtual",
-      spending_controls: {
+      type: "virtual"
+    };
+
+    // Only add spending limits if amount > 0 (Stripe requires minimum 1 cent)
+    if (parsedAmount > 0) {
+      cardConfig.spending_controls = {
         spending_limits: [{
-          amount: amount * 100, // cents
+          amount: Math.round(parsedAmount * 100), // Ensure integer cents
           interval: "all_time"
         }]
-      }
-    });
+      };
+    }
+
+    const card = await stripe.issuing.cards.create(cardConfig);
 
     // 3️⃣ Retrieve full card details (test mode only)
     const fullCard = await stripe.issuing.cards.retrieve(card.id, {
@@ -73,8 +96,8 @@ async function createCard(req, res) {
     const cardRef = await db.collection("ghost_cards").add({
       user_id,
       stripe_card_id: card.id,
-      balance: Number(amount), // Ensure this is a number
-      original_amount: amount, // Keep original amount field for reference
+      balance: parsedAmount, // Use parsed amount
+      original_amount: parsedAmount, // Keep original amount field for reference
       allowed_merchants,
       expires_at: admin.firestore.Timestamp.fromDate(new Date(expires_at)),
       status: "active",
@@ -82,7 +105,10 @@ async function createCard(req, res) {
       exp_month: fullCard.exp_month,
       exp_year: fullCard.exp_year,
       alias: alias || `Ghost Card ${Date.now().toString().slice(-4)}`, // Save alias or generate default
-      color_theme: color_theme || 'ocean' // Save color theme or default to ocean
+      color_theme: color_theme || 'ocean', // Save color theme or default to ocean
+      single_use: Boolean(single_use), // Add single-use flag
+      used: false, // Initialize as unused
+      usage_count: 0 // Initialize usage count
     });
 
     // 4️⃣ Save card id to user's card list and increase open card count by 1

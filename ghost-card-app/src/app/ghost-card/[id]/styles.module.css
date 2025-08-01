@@ -528,3 +528,85 @@
   border-radius: 8px;
   border: 1px dashed #cbd5e1;
 }
+
+/* Deactivated Card Styles */
+.deactivatedCard {
+  position: relative;
+}
+
+.deactivatedCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(107, 114, 128, 0.8);
+  border-radius: 16px;
+  z-index: 1;
+}
+
+.deactivatedCard .cardType {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  z-index: 2;
+  position: relative;
+}
+
+.statusBadge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
+/* Disabled Section Styles */
+.disabledSection {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.disabledSection h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.disabledBadge {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.disabledMessage {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1.5rem;
+  color: #dc2626;
+  text-align: center;
+}
+
+.disabledMessage p {
+  margin: 0.5rem 0;
+}
+
+.disabledMessage p:first-child {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}

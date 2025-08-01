@@ -85,12 +85,18 @@ router.get("/:card_id/history", async (req, res) => {
 
     const transactionsSnap = await db.collection("transactions")
       .where("ghost_card_id", "==", card.id) // Use Firestore doc ID
-      .orderBy("timestamp", "desc")
       .get();
 
+    // Sort in memory instead of using orderBy to avoid index requirement
     const transactions = transactionsSnap.empty
       ? []
-      : transactionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      : transactionsSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => {
+            const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+            const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+            return timeB - timeA; // desc order (newest first)
+          });
 
     res.json({ success: true, transactions });
   } catch (err) {

@@ -112,11 +112,11 @@ export default function GhostCardManagePage() {
 
   const fetchTransactions = async () => {
     if (!cardData) return;
-    
+
     try {
       const res = await fetch(`http://localhost:8080/transactions/${cardData.stripe_card_id}/history`);
       const data = await res.json();
-      
+
       if (data.success && data.transactions) {
         setTransactions(data.transactions);
       }
@@ -226,6 +226,9 @@ export default function GhostCardManagePage() {
   // Get the card theme
   const cardTheme = CARD_THEMES.find(theme => theme.id === cardData.color_theme) || CARD_THEMES[0];
 
+  // Check if card is deactivated
+  const isDeactivated = cardData.status === 'canceled' || (cardData.single_use && cardData.used);
+
   return (
     <div className={styles.container}>
       <nav className={styles.nav}>
@@ -254,9 +257,16 @@ export default function GhostCardManagePage() {
 
       <main className={styles.dashboard}>
         <div className={styles.leftPanel}>
-          <div className={styles.virtualCard} style={{ background: cardTheme.gradient }}>
+          <div className={`${styles.virtualCard} ${isDeactivated ? styles.deactivatedCard : ''}`} style={{ background: cardTheme.gradient }}>
             <div className={styles.cardHeader}>
-              <h3>{alias}</h3>
+              <h3>
+                {alias}
+                {cardData.single_use && (
+                  <span className={styles.singleUseBadge}>
+                    {isDeactivated ? 'USED' : 'ONE-TIME'}
+                  </span>
+                )}
+              </h3>
               <div className={styles.balanceContainer}>
                 <span className={styles.balanceLabel}>Balance</span>
                 <span className={styles.balanceAmount}>
@@ -269,7 +279,9 @@ export default function GhostCardManagePage() {
             </div>
             <div className={styles.cardFooter}>
               <span>Expires: {expiresAt}</span>
-              <span className={styles.cardType}>VIRTUAL</span>
+              <span className={styles.cardType}>
+                {isDeactivated ? 'DEACTIVATED' : 'VIRTUAL'}
+              </span>
             </div>
           </div>
 
@@ -329,8 +341,8 @@ export default function GhostCardManagePage() {
                           {transaction.status}
                         </span>
                         <span className={styles.timestamp}>
-                          {transaction.timestamp?.toDate ? 
-                            transaction.timestamp.toDate().toLocaleDateString() : 
+                          {transaction.timestamp?.toDate ?
+                            transaction.timestamp.toDate().toLocaleDateString() :
                             new Date(transaction.timestamp).toLocaleDateString()
                           }
                         </span>
@@ -349,50 +361,65 @@ export default function GhostCardManagePage() {
         </div>
 
         <div className={styles.rightPanel}>
-          <div className={styles.simulationTool}>
-            <h2>Transaction Simulator</h2>
-            <form className={styles.simulationForm} onSubmit={handleTransactionSimulation}>
-              <div className={styles.inputGroup}>
-                <label>Card Number</label>
-                <input
-                  type="text"
-                  value={cardData?.last4 ? `****${cardData.last4}` : '****----'}
-                  disabled
-                />
+          <div className={`${styles.simulationTool} ${isDeactivated ? styles.disabledSection : ''}`}>
+            <h2>
+              Transaction Simulator
+              {isDeactivated && (
+                <span className={styles.disabledBadge}>DISABLED</span>
+              )}
+            </h2>
+            {isDeactivated ? (
+              <div className={styles.disabledMessage}>
+                <p>❌ Transaction simulation is disabled</p>
+                <p>This card has been deactivated and cannot process new transactions.</p>
+                {cardData.single_use && cardData.used && (
+                  <p><strong>Reason:</strong> One-time use card has been used</p>
+                )}
               </div>
-              <div className={styles.inputGroup}>
-                <label>Amount (USD)</label>
-                <input
-                  type="number"
-                  value={simulationAmount}
-                  onChange={(e) => setSimulationAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  required
-                />
-              </div>
-              <div className={styles.inputGroup}>
-                <label>Merchant</label>
-                <select
-                  value={simulationMerchant}
-                  onChange={(e) => setSimulationMerchant(e.target.value)}
-                  required
+            ) : (
+              <form className={styles.simulationForm} onSubmit={handleTransactionSimulation}>
+                <div className={styles.inputGroup}>
+                  <label>Card Number</label>
+                  <input
+                    type="text"
+                    value={cardData?.last4 ? `****${cardData.last4}` : '****----'}
+                    disabled
+                  />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label>Amount (USD)</label>
+                  <input
+                    type="number"
+                    value={simulationAmount}
+                    onChange={(e) => setSimulationAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    required
+                  />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label>Merchant</label>
+                  <select
+                    value={simulationMerchant}
+                    onChange={(e) => setSimulationMerchant(e.target.value)}
+                    required
+                  >
+                    <option value="">Select merchant</option>
+                    {MERCHANTS.map((merchant, index) => (
+                      <option key={index} value={merchant}>
+                        {merchant.charAt(0).toUpperCase() + merchant.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className={styles.simulateBtn}
+                  disabled={simulationLoading || !simulationAmount || !simulationMerchant}
                 >
-                  <option value="">Select merchant</option>
-                  {MERCHANTS.map((merchant, index) => (
-                    <option key={index} value={merchant}>
-                      {merchant.charAt(0).toUpperCase() + merchant.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button 
-                type="submit" 
-                className={styles.simulateBtn}
-                disabled={simulationLoading || !simulationAmount || !simulationMerchant}
-              >
-                {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
-              </button>
-            </form>
+                  {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </main>

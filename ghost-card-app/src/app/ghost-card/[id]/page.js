@@ -112,11 +112,11 @@ export default function GhostCardManagePage() {
 
   const fetchTransactions = async () => {
     if (!cardData) return;
-    
+
     try {
-      const res = await fetch(`http://localhost:8080/transactions/${cardData.stripe_card_id}/history`);
+      const res = await fetch(`http://localhost:8080/transactions/${cardData.id}/history`);
       const data = await res.json();
-      
+
       if (data.success && data.transactions) {
         setTransactions(data.transactions);
       }
@@ -142,27 +142,16 @@ export default function GhostCardManagePage() {
         })
       });
 
-      const result = await res.json();
-
-      // Add transaction to list (approved or rejected)
-      const newTransaction = {
-        id: Date.now(),
-        amount: parseFloat(simulationAmount),
-        merchant: simulationMerchant,
-        status: result.approved ? 'approved' : 'rejected',
-        reason: result.reason,
-        timestamp: new Date().toISOString()
-      };
-
-      setTransactions(prev => [newTransaction, ...prev]);
+      // No need to add to local state here!
+      // Always fetch from backend after simulation
 
       // Reset form
       setSimulationAmount('');
       setSimulationMerchant('');
 
       // Refresh card data and transactions
-      fetchCardData();
-      fetchTransactions();
+      await fetchCardData();
+      await fetchTransactions();
 
     } catch (err) {
       console.error('Transaction error:', err);
@@ -342,8 +331,8 @@ export default function GhostCardManagePage() {
                       )}
                     </div>
                   </div>
-                ))
-              )}
+                )))
+              }
             </div>
           </div>
         </div>
@@ -392,6 +381,7 @@ export default function GhostCardManagePage() {
                   </div>
                 </div>
               </div>
+              
               <div className={styles.inputGroup}>
                 <label>Merchant</label>
                 <select
@@ -541,3 +531,4 @@ export default function GhostCardManagePage() {
     </div>
   );
 }
+

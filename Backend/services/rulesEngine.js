@@ -20,16 +20,10 @@ async function evaluateTransaction(transaction, card) {
             return cardStatusCheck;
         }
 
-        // Check merchant restrictions
+        // Check merchant restrictions first
         const merchantCheck = checkMerchantRestrictions(transaction, card);
         if (!merchantCheck.approved) {
             return merchantCheck;
-        }
-
-        // Check balance/spending limits
-        const balanceCheck = checkBalance(transaction, card);
-        if (!balanceCheck.approved) {
-            return balanceCheck;
         }
 
         // Check expiration
@@ -38,7 +32,25 @@ async function evaluateTransaction(transaction, card) {
             return expirationCheck;
         }
 
-        // Check usage count for single-use cards
+        // Special handling for single-use cards
+        if (card.single_use) {
+            // If it's already used, reject
+            if (card.used) {
+                return { approved: false, reason: "Single-use card already used" };
+            }
+
+            // For unused single-use cards with valid merchants, approve immediately
+            // The card will be deactivated in updateCardAfterTransaction
+            return { approved: true, reason: "Single-use card transaction approved" };
+        }
+
+        // For regular cards, check balance/spending limits
+        const balanceCheck = checkBalance(transaction, card);
+        if (!balanceCheck.approved) {
+            return balanceCheck;
+        }
+
+        // Check general usage restrictions (for non-single-use cards)
         const usageCheck = checkUsageRestrictions(card);
         if (!usageCheck.approved) {
             return usageCheck;
@@ -92,7 +104,10 @@ function checkMerchantRestrictions(transaction, card) {
  * @returns {Object} - { approved: boolean, reason: string }
  */
 function checkBalance(transaction, card) {
-    if (transaction.amount > card.balance) {
+    const cardBalance = typeof card.balance === "number" ? card.balance : parseFloat(card.balance || 0);
+    const transactionAmount = typeof transaction.amount === "number" ? transaction.amount : parseFloat(transaction.amount);
+
+    if (transactionAmount > cardBalance) {
         return { approved: false, reason: "Insufficient balance" };
     }
     return { approved: true, reason: "Sufficient balance" };
@@ -105,7 +120,7 @@ function checkBalance(transaction, card) {
  */
 function checkExpiration(card) {
     const now = new Date();
-    
+
     // Check expires_at field (Firestore Timestamp)
     if (card.expires_at) {
         const expirationDate = card.expires_at.toDate ? card.expires_at.toDate() : new Date(card.expires_at);
@@ -113,7 +128,7 @@ function checkExpiration(card) {
             return { approved: false, reason: "Card expired" };
         }
     }
-    
+
     // Fallback check for expiration_date field
     if (card.expiration_date) {
         const expirationDate = new Date(card.expiration_date);
@@ -126,15 +141,13 @@ function checkExpiration(card) {
 }
 
 /**
- * Check usage restrictions (e.g., single-use cards)
+ * Check usage restrictions (e.g., usage limits) - excludes single-use logic
  * @param {Object} card - Card data
  * @returns {Object} - { approved: boolean, reason: string }
  */
 function checkUsageRestrictions(card) {
-    // Check if card is single-use and already used
-    if (card.single_use && card.used) {
-        return { approved: false, reason: "Single-use card exhausted" };
-    }
+    // Single-use cards are handled separately in evaluateTransaction
+    // This function only handles general usage limits
 
     // Check if card has usage limit
     if (card.usage_limit && card.usage_count >= card.usage_limit) {
@@ -183,8 +196,12 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
     const currentBalance = typeof card.balance === "number" ? card.balance : parseFloat(card.balance);
     const deduction = typeof transaction.amount === "number" ? transaction.amount : parseFloat(transaction.amount);
 
+    // For single-use cards, use the original amount as the effective balance
+    const effectiveBalance = card.single_use ? (card.original_amount || card.balance) : currentBalance;
+    const finalBalance = Math.max(0, effectiveBalance - deduction);
+
     const updates = {
-      balance: currentBalance - deduction,
+      balance: finalBalance,
       usage_count: (card.usage_count || 0) + 1,
       last_transaction: admin.firestore.Timestamp.now()
     };
@@ -206,9 +223,9 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
       merchant: transaction.merchant,
       currency: transaction.currency,
       status: "approved",
-      reason: "Transaction approved",
+      reason: card.single_use ? "Single-use card transaction approved" : "Transaction approved",
       timestamp: admin.firestore.Timestamp.now(),
-      remaining_balance: currentBalance - deduction
+      remaining_balance: finalBalance
     });
 
     return true;

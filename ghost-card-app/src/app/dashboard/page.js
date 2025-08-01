@@ -66,10 +66,11 @@ export default function DashboardPage() {
     sourceAccount: '',
     expirationDate: '',
     expirationTime: '',
-    amount: '',
+    amount: '0', // Default to $0.00
     alias: '',
     merchants: [],
-    colorTheme: 'ocean'
+    colorTheme: 'ocean',
+    single_use: false
   });
   const [ghostCards, setGhostCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,15 +124,29 @@ export default function DashboardPage() {
           allowed_merchants: ghostCardData.merchants,
           expires_at: expiryISO,
           alias: ghostCardData.alias,
-          color_theme: ghostCardData.colorTheme
+          color_theme: ghostCardData.colorTheme,
+          single_use: ghostCardData.single_use
         })
       });
 
-      if (!res.ok) throw new Error("Failed to create Ghost Card");
+      if (!res.ok) {
+        const errorData = await res.text();
+        console.error("Backend error:", errorData);
+        throw new Error(`Failed to create Ghost Card: ${res.status} - ${errorData}`);
+      }
       await res.json();
 
       setShowGhostCardModal(false);
-      setGhostCardData({ sourceAccount: '', expirationDate: '', expirationTime: '', amount: '', alias: '', merchants: [] });
+      setGhostCardData({
+        sourceAccount: '',
+        expirationDate: '',
+        expirationTime: '',
+        amount: '0', // Reset to default $0.00
+        alias: '',
+        merchants: [],
+        colorTheme: 'ocean',
+        single_use: false
+      });
 
       fetchGhostCards();
     } catch (err) {
@@ -208,7 +223,7 @@ export default function DashboardPage() {
                   })}
                 </p>
               </div>
-              
+
               <div className={styles.accountStats}>
                 <span className={styles.statItem}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -223,7 +238,7 @@ export default function DashboardPage() {
                   <span className={styles.statValue}>24h Change</span>
                 </span>
               </div>
-              
+
               <div className={styles.accountActions}>
                 <button className={styles.accountActionBtn}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -249,15 +264,23 @@ export default function DashboardPage() {
 
           {ghostCards.map((card) => {
             const cardTheme = CARD_THEMES.find(theme => theme.id === card.color_theme) || CARD_THEMES[0];
+            const isDeactivated = card.status === 'canceled' || (card.single_use && card.used);
             return (
               <div
                 key={card.id}
-                className={`${styles.accountCard} ${styles.ghostCard}`}
+                className={`${styles.accountCard} ${styles.ghostCard} ${isDeactivated ? styles.deactivatedCard : ''}`}
                 style={{ background: cardTheme.gradient }}
               >
                 <div className={styles.ghostCardContent}>
                   <div className={styles.cardHeader}>
-                    <h3>{card.alias || `Ghost Card ${card.id.slice(-4)}`}</h3>
+                    <h3>
+                      {card.alias || `Ghost Card ${card.id.slice(-4)}`}
+                      {card.single_use && (
+                        <span className={styles.singleUseBadge}>
+                          {isDeactivated ? 'USED' : 'ONE-TIME'}
+                        </span>
+                      )}
+                    </h3>
                     <div className={styles.balanceContainer}>
                       <span className={styles.balanceLabel}>Balance</span>
                       <span className={styles.balanceAmount}>
@@ -270,14 +293,17 @@ export default function DashboardPage() {
                   </div>
                   <div className={styles.cardFooter}>
                     <span>Expires: {new Date(card.expires_at._seconds * 1000).toLocaleString()}</span>
-                    <span className={styles.cardType}>VIRTUAL</span>
+                    <span className={styles.cardType}>
+                      {isDeactivated ? 'DEACTIVATED' : 'VIRTUAL'}
+                    </span>
                   </div>
                   <div className={styles.cardActions}>
                     <button
                       onClick={() => window.location.href = `/ghost-card/${card.id}`}
                       className={styles.actionButton}
+                      disabled={isDeactivated}
                     >
-                      Manage
+                      {isDeactivated ? 'View' : 'Manage'}
                     </button>
                     <button
                       onClick={() => handleDeleteCard(card.id, card.stripe_card_id)}
@@ -334,30 +360,33 @@ export default function DashboardPage() {
                   <label>Amount ($)</label>
                   <div className={styles.amountContainer}>
                     <input
-                      type="text" // Changed from number to text
+                      type="text"
                       value={`$${parseFloat(ghostCardData.amount || 0).toFixed(2)}`}
                       onChange={(e) => {
-                        // Strip non-numeric characters and convert to number
-                        const value = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
-                        if (!isNaN(value)) {
-                          const clampedValue = Math.min(1000, Math.max(10, value));
-                          setGhostCardData({...ghostCardData, amount: clampedValue.toString()});
+                        // Remove $ and any non-numeric characters except decimal point
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        const numValue = parseFloat(value);
+
+                        // Allow any positive number or zero, including decimals
+                        if (value === '' || (!isNaN(numValue) && numValue >= 0)) {
+                          setGhostCardData({...ghostCardData, amount: value || '0'});
                         }
                       }}
+                      placeholder="Enter amount (e.g., $5.50)"
                       required
                       className={styles.amountInput}
                     />
                     <input
                       type="range"
-                      min="10"
+                      min="0"
                       max="1000"
-                      step="10"
-                      value={ghostCardData.amount || 10}
+                      step="1"
+                      value={ghostCardData.amount || 0}
                       onChange={(e) => setGhostCardData({...ghostCardData, amount: e.target.value})}
                       className={styles.amountSlider}
                     />
                     <div className={styles.sliderLabels}>
-                      <span>$10.00</span>
+                      <span>$0.00</span>
                       <span>$1,000.00</span>
                     </div>
                   </div>
@@ -372,6 +401,21 @@ export default function DashboardPage() {
                     placeholder="e.g., Netflix Monthly"
                     required
                   />
+                </div>
+
+                <div className={styles.modalGroup}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={ghostCardData.single_use}
+                      onChange={(e) => setGhostCardData({...ghostCardData, single_use: e.target.checked})}
+                      className={styles.checkbox}
+                    />
+                    <span className={styles.checkboxText}>One-time use only</span>
+                    <small className={styles.checkboxHelpText}>
+                      Card will automatically deactivate after the first successful transaction
+                    </small>
+                  </label>
                 </div>
 
                 <div className={styles.modalGroup}>

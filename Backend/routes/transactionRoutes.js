@@ -82,6 +82,7 @@ router.get("/:card_id/history", async (req, res) => {
       .orderBy("timestamp", "desc")
       .get();
 
+    // Sort in memory instead of using orderBy to avoid index requirement
     const transactions = transactionsSnap.empty
       ? []
       : transactionsSnap.docs.map(doc => {

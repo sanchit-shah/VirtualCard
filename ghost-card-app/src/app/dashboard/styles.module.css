@@ -739,6 +739,7 @@
   width: 100%;
   height: 6px;
   -webkit-appearance: none;
+  appearance: none;
   background: #e2e8f0;
   border-radius: 3px;
   outline: none;
@@ -783,4 +784,88 @@
   font-size: 0.875rem;
   padding: 0 2px;
   font-variant-numeric: tabular-nums;
+}
+
+/* One-time use checkbox styling */
+.checkboxLabel {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem !important;
+  cursor: pointer !important;
+  align-items: flex-start !important;
+}
+
+.checkbox {
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 0.75rem !important;
+  cursor: pointer !important;
+  accent-color: #3182ce !important;
+}
+
+.checkboxText {
+  font-weight: 500 !important;
+  color: #2d3748 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+}
+
+.checkboxHelpText {
+  color: #718096 !important;
+  font-size: 0.8rem !important;
+  margin-left: 2.5rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Deactivated card styling */
+.deactivatedCard {
+  position: relative;
+  opacity: 0.7;
+}
+
+.deactivatedCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(128, 128, 128, 0.4);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.deactivatedCard .ghostCardContent {
+  position: relative;
+  z-index: 2;
+}
+
+.singleUseBadge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.deactivatedCard .singleUseBadge {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.actionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.actionButton:disabled:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.2);
 }

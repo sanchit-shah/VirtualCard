@@ -21,7 +21,37 @@ async function evaluateTransaction(transaction, card) {
             return { approved: false, reason: "Card not found" };
         }
 
-        // Check card status - this will now provide specific messages for deactivated single-use cards
+        // Special handling for $0 transactions - bypass Stripe entirely for testing
+        const transactionAmount = typeof transaction.amount === "number" ? transaction.amount : parseFloat(transaction.amount);
+        if (transactionAmount === 0) {
+            console.log("Processing $0 test transaction - bypassing Stripe");
+
+            // Still run basic validation checks for $0 transactions
+            const cardStatusCheck = checkCardStatus(card);
+            if (!cardStatusCheck.approved) {
+                return cardStatusCheck;
+            }
+
+            const merchantCheck = checkMerchantRestrictions(transaction, card);
+            if (!merchantCheck.approved) {
+                return merchantCheck;
+            }
+
+            const expirationCheck = checkExpiration(card);
+            if (!expirationCheck.approved) {
+                return expirationCheck;
+            }
+
+            // For $0 single-use cards, still check if already used
+            if (card.single_use && card.used) {
+                return { approved: false, reason: "Single-use card already used" };
+            }
+
+            // Approve $0 transactions for testing purposes
+            return { approved: true, reason: "$0 test transaction approved" };
+        }
+
+        // Normal processing for non-zero transactions
         const cardStatusCheck = checkCardStatus(card);
         if (!cardStatusCheck.approved) {
             return cardStatusCheck;
@@ -212,7 +242,50 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
     const currentBalance = typeof card.balance === "number" ? card.balance : parseFloat(card.balance);
     const deduction = typeof transaction.amount === "number" ? transaction.amount : parseFloat(transaction.amount);
 
-    // For single-use cards, use the original amount as the effective balance
+    // Special handling for $0 test transactions
+    if (deduction === 0) {
+      console.log("Processing $0 test transaction update - minimal Stripe interaction");
+
+      const updates = {
+        usage_count: (card.usage_count || 0) + 1,
+        last_transaction: admin.firestore.Timestamp.now()
+      };
+
+      // For single-use cards, still mark as used even for $0 transactions
+      if (card.single_use) {
+        updates.used = true;
+        updates.status = "canceled";
+
+        // Try to deactivate in Stripe, but don't fail if it doesn't work
+        if (card.stripe_card_id) {
+          try {
+            await stripe.issuing.cards.update(card.stripe_card_id, { status: "canceled" });
+          } catch (stripeErr) {
+            console.log("Note: Could not deactivate card in Stripe for $0 transaction:", stripeErr.message);
+          }
+        }
+      }
+
+      // Update card data in ghost_cards
+      await db.collection("ghost_cards").doc(cardDocId).update(updates);
+
+      // Log the $0 test transaction
+      await db.collection("transactions").add({
+        card_id: transaction.card_id,
+        ghost_card_id: cardDocId,
+        amount: 0,
+        merchant: transaction.merchant,
+        currency: transaction.currency,
+        status: "approved",
+        reason: "$0 test transaction approved",
+        timestamp: admin.firestore.Timestamp.now(),
+        remaining_balance: currentBalance // Balance unchanged for $0 transactions
+      });
+
+      return true;
+    }
+
+    // Normal processing for non-zero transactions
     const effectiveBalance = card.single_use ? (card.original_amount || card.balance) : currentBalance;
     const finalBalance = Math.max(0, effectiveBalance - deduction);
 

@@ -306,7 +306,7 @@ export default function DashboardPage() {
             .sort((a, b) => {
               // 🎯 MULTI-TIER SORTING SYSTEM:
               // 1st Priority: Active single-use cards (unused)
-              // 2nd Priority: Active regular cards  
+              // 2nd Priority: Active regular cards
               // 3rd Priority: Deactivated cards (used single-use or canceled)
 
               // Determine card states

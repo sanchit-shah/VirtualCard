@@ -136,6 +136,11 @@ export default function GhostCardManagePage() {
     e.preventDefault();
     if (!cardData) return;
 
+    console.log('Frontend: Starting transaction simulation');
+    console.log('Frontend: Amount:', simulationAmount, 'Parsed:', parseFloat(simulationAmount));
+    console.log('Frontend: Merchant:', simulationMerchant);
+    console.log('Frontend: Card ID:', cardData.stripe_card_id);
+
     setSimulationLoading(true);
     try {
       const res = await fetch('http://localhost:8080/transactions/charge', {
@@ -147,6 +152,9 @@ export default function GhostCardManagePage() {
           merchant: simulationMerchant
         })
       });
+
+      const result = await res.json();
+      console.log('Frontend: Transaction result:', result);
 
       // No need to add to local state here!
       // Always fetch from backend after simulation
@@ -220,7 +228,7 @@ export default function GhostCardManagePage() {
 
   // Get the card theme
   const cardTheme = CARD_THEMES.find(theme => theme.id === cardData.color_theme) || CARD_THEMES[0];
-  
+
   // Check if card is deactivated
   const isDeactivated = cardData.status === 'canceled' || (cardData.single_use && cardData.used);
 
@@ -252,8 +260,8 @@ export default function GhostCardManagePage() {
 
       <main className={styles.dashboard}>
         <div className={styles.leftPanel}>
-          <div 
-            className={`${styles.virtualCard} ${isDeactivated ? styles.deactivated : ''}`} 
+          <div
+            className={`${styles.virtualCard} ${isDeactivated ? styles.deactivated : ''}`}
             style={{ background: cardTheme.gradient }}
           >
             <div className={styles.cardHeader}>
@@ -339,8 +347,8 @@ export default function GhostCardManagePage() {
                           {transaction.status}
                         </span>
                         <span className={styles.timestamp}>
-                          {transaction.timestamp ? 
-                            new Date(transaction.timestamp).toLocaleString() : 
+                          {transaction.timestamp ?
+                            new Date(transaction.timestamp).toLocaleString() :
                             'No timestamp'
                           }
                         </span>
@@ -421,7 +429,7 @@ export default function GhostCardManagePage() {
               <button
                 type="submit"
                 className={styles.simulateBtn}
-                disabled={simulationLoading || !simulationAmount || !simulationMerchant}
+                disabled={simulationLoading || simulationAmount === '' || !simulationMerchant}
               >
                 {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
               </button>

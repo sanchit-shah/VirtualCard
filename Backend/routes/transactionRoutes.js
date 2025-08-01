@@ -23,7 +23,7 @@ const {
 router.post("/charge", async (req, res) => {
   try {
     const { card_id, amount, merchant } = req.body;
-    if (!card_id || !amount || !merchant) {
+    if (!card_id || amount === undefined || amount === null || !merchant) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -39,7 +39,11 @@ router.post("/charge", async (req, res) => {
       currency: "usd"
     };
 
+    console.log("Transaction simulation request:", transaction);
+    console.log("Card data:", { id: card.id, balance: card.balance, single_use: card.single_use, used: card.used, status: card.status });
+
     const evaluation = await evaluateTransaction(transaction, card);
+    console.log("Transaction evaluation result:", evaluation);
 
     if (evaluation.approved) {
       await updateCardAfterTransaction(card.id, transaction, card);
@@ -104,7 +108,7 @@ router.get("/:card_id/history", async (req, res) => {
       ? []
       : transactionsSnap.docs.map(doc => {
           const data = doc.data();
-          
+
           // Convert Firestore timestamp to ISO string for frontend
           let timestamp = null;
           if (data.timestamp) {
@@ -123,7 +127,7 @@ router.get("/:card_id/history", async (req, res) => {
               timestamp = isNaN(date.getTime()) ? null : date.toISOString();
             }
           }
-          
+
           return {
             id: doc.id,
             card_id: data.card_id || card_id,

@@ -362,13 +362,35 @@ export default function GhostCardManagePage() {
               </div>
               <div className={styles.inputGroup}>
                 <label>Amount (USD)</label>
-                <input
-                  type="number"
-                  value={simulationAmount}
-                  onChange={(e) => setSimulationAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  required
-                />
+                <div className={styles.amountContainer}>
+                  <input
+                    type="text"
+                    value={`$${parseFloat(simulationAmount || 0).toFixed(2)}`}
+                    onChange={(e) => {
+                      // Strip non-numeric characters and convert to number
+                      const value = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
+                      if (!isNaN(value)) {
+                        const clampedValue = Math.min(1000, Math.max(10, value));
+                        setSimulationAmount(clampedValue.toString());
+                      }
+                    }}
+                    required
+                    className={styles.amountInput}
+                  />
+                  <input
+                    type="range"
+                    min="10"
+                    max="1000"
+                    step="10"
+                    value={simulationAmount || 10}
+                    onChange={(e) => setSimulationAmount(e.target.value)}
+                    className={styles.amountSlider}
+                  />
+                  <div className={styles.sliderLabels}>
+                    <span>$10.00</span>
+                    <span>$1,000.00</span>
+                  </div>
+                </div>
               </div>
               <div className={styles.inputGroup}>
                 <label>Merchant</label>

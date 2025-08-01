@@ -56,6 +56,23 @@ router.post("/charge", async (req, res) => {
         timestamp: admin.firestore.Timestamp.now(),
         remaining_balance: card.balance
       });
+
+      // If the card is expired, cancel it in Stripe as well
+      let isExpired = false;
+      if (card.expires_at) {
+        const expirationDate = card.expires_at.toDate ? card.expires_at.toDate() : new Date(card.expires_at);
+        if (new Date() > expirationDate) {
+          isExpired = true;
+        }
+      }
+      if (isExpired && card.stripe_card_id) {
+        try {
+          await stripe.issuing.cards.update(card.stripe_card_id, { status: "canceled" });
+          await db.collection("ghost_cards").doc(card.id).update({ status: "canceled" });
+        } catch (stripeErr) {
+          console.error("Failed to cancel expired card in Stripe:", stripeErr);
+        }
+      }
     }
 
     res.json({

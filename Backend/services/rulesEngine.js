@@ -1,6 +1,8 @@
 // This file will handle the logic to approve or reject charges.
 
 const admin = require("firebase-admin");
+const Stripe = require("stripe");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * Main function to evaluate a transaction against all rules
@@ -206,14 +208,41 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
       last_transaction: admin.firestore.Timestamp.now()
     };
 
+    let shouldDeactivate = false;
+
     // Mark as used if single-use card
     if (card.single_use) {
       updates.used = true;
       updates.status = "canceled"; // Auto-cancel after use
+      shouldDeactivate = true;
+    }
+
+    // Deactivate if balance is zero or less
+    if (finalBalance <= 0) {
+      updates.status = "canceled";
+      shouldDeactivate = true;
+    }
+
+    // Deactivate if expired (optional, but you may want to check here too)
+    if (card.expires_at) {
+      const expirationDate = card.expires_at.toDate ? card.expires_at.toDate() : new Date(card.expires_at);
+      if (new Date() > expirationDate) {
+        updates.status = "canceled";
+        shouldDeactivate = true;
+      }
     }
 
     // Update card data in ghost_cards
     await db.collection("ghost_cards").doc(cardDocId).update(updates);
+
+    // Deactivate in Stripe if needed
+    if (shouldDeactivate && card.stripe_card_id) {
+      try {
+        await stripe.issuing.cards.update(card.stripe_card_id, { status: "canceled" });
+      } catch (stripeErr) {
+        console.error("Failed to deactivate card in Stripe:", stripeErr);
+      }
+    }
 
     // ✅ Log approved transaction in transactions collection
     await db.collection("transactions").add({

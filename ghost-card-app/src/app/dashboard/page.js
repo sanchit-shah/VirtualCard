@@ -62,6 +62,9 @@ const CARD_THEMES = [
 
 export default function DashboardPage() {
   const [showGhostCardModal, setShowGhostCardModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [ghostCardData, setGhostCardData] = useState({
     sourceAccount: '',
     expirationDate: '',
@@ -74,6 +77,26 @@ export default function DashboardPage() {
   });
   const [ghostCards, setGhostCards] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+  };
+
+  const handleOpenGhostCardModal = () => {
+    // Reset form data when opening modal to ensure slider starts at $0.00
+    setGhostCardData({
+      sourceAccount: '',
+      expirationDate: '',
+      expirationTime: '',
+      amount: '0', // Ensure slider starts at $0.00
+      alias: '',
+      merchants: [],
+      colorTheme: 'ocean',
+      single_use: false
+    });
+    setShowGhostCardModal(true);
+  };
 
   const accounts = [
     { type: 'Primary Checking', number: '*****1234', balance: 2543.21 },
@@ -108,7 +131,10 @@ export default function DashboardPage() {
   const handleGhostCardSubmit = async (e) => {
     e.preventDefault();
     const userId = localStorage.getItem('user_id');
-    if (!userId) return alert("No logged in user");
+    if (!userId) {
+      showToast("No logged in user", 'error');
+      return;
+    }
 
     try {
       const expiryISO = new Date(
@@ -137,6 +163,7 @@ export default function DashboardPage() {
       await res.json();
 
       setShowGhostCardModal(false);
+      showToast("Ghost card created successfully!", 'success');
       setGhostCardData({
         sourceAccount: '',
         expirationDate: '',
@@ -151,31 +178,44 @@ export default function DashboardPage() {
       fetchGhostCards();
     } catch (err) {
       console.error(err);
-      alert("Error creating Ghost Card");
+      showToast("Error creating Ghost Card", 'error');
     }
   };
 
   const handleDeleteCard = async (cardId, stripeCardId) => {
-    if (!confirm("Are you sure you want to delete this ghost card? This action cannot be undone.")) {
-      return;
-    }
+    // Show the delete confirmation modal
+    setCardToDelete({ cardId, stripeCardId });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteCard = async () => {
+    if (!cardToDelete) return;
 
     try {
-      const res = await fetch(`http://localhost:8080/cards/${stripeCardId}`, {
+      const res = await fetch(`http://localhost:8080/cards/${cardToDelete.stripeCardId}`, {
         method: "DELETE"
       });
 
       if (!res.ok) throw new Error("Failed to delete card");
 
       const data = await res.json();
-      alert(data.message);
+
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setCardToDelete(null);
 
       // Refresh the cards list
       fetchGhostCards();
+      showToast("Ghost card deleted successfully", 'success');
     } catch (err) {
       console.error("Error deleting card:", err);
-      alert("Error deleting card");
+      showToast("Error deleting card", 'error');
     }
+  };
+
+  const cancelDeleteCard = () => {
+    setShowDeleteModal(false);
+    setCardToDelete(null);
   };
 
   if (loading) return <p>Loading dashboard...</p>;
@@ -199,7 +239,7 @@ export default function DashboardPage() {
             <h2>Welcome back</h2>
           </div>
           <div className={styles.buttonGroup}>
-            <button className={styles.primaryBtn} onClick={() => setShowGhostCardModal(true)}>
+            <button className={styles.primaryBtn} onClick={handleOpenGhostCardModal}>
               + New Ghost Card
             </button>
           </div>
@@ -262,7 +302,88 @@ export default function DashboardPage() {
             </div>
           ))}
 
-          {ghostCards.map((card) => {
+          {ghostCards
+            .sort((a, b) => {
+              // 🎯 MULTI-TIER SORTING SYSTEM:
+              // 1st Priority: Active single-use cards (unused)
+              // 2nd Priority: Active regular cards  
+              // 3rd Priority: Deactivated cards (used single-use or canceled)
+
+              // Determine card states
+              const aDeactivated = a.status === 'canceled' || (a.single_use && a.used);
+              const bDeactivated = b.status === 'canceled' || (b.single_use && b.used);
+              const aActiveSingleUse = !aDeactivated && a.single_use && !a.used;
+              const bActiveSingleUse = !bDeactivated && b.single_use && !b.used;
+              const aActiveRegular = !aDeactivated && !a.single_use;
+              const bActiveRegular = !bDeactivated && !b.single_use;
+
+              // 🥇 Active single-use cards always come first
+              if (aActiveSingleUse && !bActiveSingleUse) return -1;
+              if (!aActiveSingleUse && bActiveSingleUse) return 1;
+
+              // 🥈 Active regular cards come second (after single-use)
+              if (aActiveRegular && bDeactivated) return -1;
+              if (aDeactivated && bActiveRegular) return 1;
+
+              // 🥉 Deactivated cards come last
+              if (aDeactivated && !bDeactivated) return 1;
+              if (!aDeactivated && bDeactivated) return -1;
+
+              // Within each priority group, sort by creation date (most recent first)
+              let aDate, bDate;
+              let hasValidDates = false;
+
+              // Handle Firestore Timestamp objects and fallbacks
+              if (a.created_at) {
+                if (a.created_at.toDate && typeof a.created_at.toDate === 'function') {
+                  aDate = a.created_at.toDate();
+                } else if (a.created_at.seconds) {
+                  aDate = new Date(a.created_at.seconds * 1000);
+                } else {
+                  aDate = new Date(a.created_at);
+                }
+              } else {
+                aDate = new Date(0);
+              }
+
+              if (b.created_at) {
+                if (b.created_at.toDate && typeof b.created_at.toDate === 'function') {
+                  bDate = b.created_at.toDate();
+                } else if (b.created_at.seconds) {
+                  bDate = new Date(b.created_at.seconds * 1000);
+                } else {
+                  bDate = new Date(b.created_at);
+                }
+              } else {
+                bDate = new Date(0);
+              }
+
+              // Ensure we have valid dates
+              if (isNaN(aDate.getTime())) {
+                aDate = new Date(0);
+              }
+              if (isNaN(bDate.getTime())) {
+                bDate = new Date(0);
+              }
+
+              // Check if we have meaningful dates (not epoch 0)
+              hasValidDates = aDate.getTime() > 0 || bDate.getTime() > 0;
+
+              // If both dates are epoch 0 (no created_at), use alias for consistent ordering
+              if (!hasValidDates) {
+                const aName = (a.alias || a.id || '').toLowerCase();
+                const bName = (b.alias || b.id || '').toLowerCase();
+                // Sort alphabetically, but prefer newer-sounding names first
+                // This is a heuristic - cards with "test" or recent names tend to be newer
+                if (aName.includes('test') && !bName.includes('test')) return -1;
+                if (!aName.includes('test') && bName.includes('test')) return 1;
+                return aName.localeCompare(bName);
+              }
+
+              // Sort by date (most recent first)
+              return bDate - aDate;
+            })
+            .map((card) => {
             const cardTheme = CARD_THEMES.find(theme => theme.id === card.color_theme) || CARD_THEMES[0];
             const isDeactivated = card.status === 'canceled' || (card.single_use && card.used);
             return (
@@ -381,7 +502,7 @@ export default function DashboardPage() {
                       min="0"
                       max="1000"
                       step="1"
-                      value={ghostCardData.amount || 0}
+                      value={Number(ghostCardData.amount) || 0}
                       onChange={(e) => setGhostCardData({...ghostCardData, amount: e.target.value})}
                       className={styles.amountSlider}
                     />
@@ -486,6 +607,41 @@ export default function DashboardPage() {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {showDeleteModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modal}>
+              <h2>Delete Ghost Card</h2>
+              <div className={styles.deleteModalContent}>
+                <div className={styles.warningIcon}>⚠️</div>
+                <p>Are you sure you want to delete this ghost card?</p>
+                <p className={styles.warningText}>This action cannot be undone.</p>
+              </div>
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={cancelDeleteCard}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.submitBtn} ${styles.deleteBtn}`}
+                  onClick={confirmDeleteCard}
+                >
+                  Delete Card
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toast.show && (
+          <div className={`${styles.toast} ${styles[toast.type]}`}>
+            {toast.message}
           </div>
         )}
       </main>

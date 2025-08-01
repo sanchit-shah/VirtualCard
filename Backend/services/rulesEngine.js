@@ -16,7 +16,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  */
 async function evaluateTransaction(transaction, card) {
     try {
-        // Check if card is active
+        // Check if card exists
+        if (!card) {
+            return { approved: false, reason: "Card not found" };
+        }
+
+        // Check card status - this will now provide specific messages for deactivated single-use cards
         const cardStatusCheck = checkCardStatus(card);
         if (!cardStatusCheck.approved) {
             return cardStatusCheck;
@@ -73,9 +78,18 @@ async function evaluateTransaction(transaction, card) {
  * @returns {Object} - { approved: boolean, reason: string }
  */
 function checkCardStatus(card) {
-    if (!card || card.status !== "active") {
+    if (!card) {
+        return { approved: false, reason: "Card not found" };
+    }
+
+    // Allow transaction processing for deactivated single-use cards to show proper rejection
+    if (card.status !== "active") {
+        if (card.single_use && (card.status === "canceled" || card.used)) {
+            return { approved: false, reason: "Single-use card already used and deactivated" };
+        }
         return { approved: false, reason: "Card inactive" };
     }
+
     return { approved: true, reason: "Card status valid" };
 }
 
@@ -264,10 +278,42 @@ async function updateCardAfterTransaction(cardDocId, transaction, card) {
   }
 }
 
+/**
+ * Log a rejected transaction to the transactions collection
+ * @param {string} cardDocId - Firestore document ID
+ * @param {Object} transaction - Transaction data
+ * @param {Object} card - Current card data
+ * @param {string} reason - Rejection reason
+ * @returns {boolean} - Success status
+ */
+async function logRejectedTransaction(cardDocId, transaction, card, reason) {
+  try {
+    const db = admin.firestore();
+
+    await db.collection("transactions").add({
+      card_id: transaction.card_id,         // Stripe card ID
+      ghost_card_id: cardDocId,             // Firestore doc ID
+      amount: transaction.amount,
+      merchant: transaction.merchant,
+      currency: transaction.currency,
+      status: "rejected",
+      reason: reason,
+      timestamp: admin.firestore.Timestamp.now(),
+      remaining_balance: card.balance
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error logging rejected transaction:", error);
+    return false;
+  }
+}
+
 module.exports = {
     evaluateTransaction,
     getCardData,
     updateCardAfterTransaction,
+    logRejectedTransaction,
     checkCardStatus,
     checkMerchantRestrictions,
     checkBalance,

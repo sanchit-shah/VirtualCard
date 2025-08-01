@@ -104,6 +104,26 @@ router.get("/:card_id/history", async (req, res) => {
       ? []
       : transactionsSnap.docs.map(doc => {
           const data = doc.data();
+          
+          // Convert Firestore timestamp to ISO string for frontend
+          let timestamp = null;
+          if (data.timestamp) {
+            if (data.timestamp.toDate && typeof data.timestamp.toDate === 'function') {
+              // Firestore Timestamp object
+              timestamp = data.timestamp.toDate().toISOString();
+            } else if (data.timestamp.seconds) {
+              // Firestore Timestamp with seconds property
+              timestamp = new Date(data.timestamp.seconds * 1000).toISOString();
+            } else if (data.timestamp instanceof Date) {
+              // Regular Date object
+              timestamp = data.timestamp.toISOString();
+            } else {
+              // Try to parse as date string
+              const date = new Date(data.timestamp);
+              timestamp = isNaN(date.getTime()) ? null : date.toISOString();
+            }
+          }
+          
           return {
             id: doc.id,
             card_id: data.card_id || card_id,
@@ -111,7 +131,7 @@ router.get("/:card_id/history", async (req, res) => {
             merchant: data.merchant || "Unknown Merchant",
             status: data.status || "unknown",
             reason: data.reason || "No reason provided",
-            timestamp: data.timestamp || null,
+            timestamp: timestamp,
             remaining_balance: data.remaining_balance ?? null
           };
         });

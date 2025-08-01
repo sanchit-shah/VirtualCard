@@ -74,6 +74,7 @@ export default function GhostCardManagePage() {
   const [simulationMerchant, setSimulationMerchant] = useState('');
   const [simulationLoading, setSimulationLoading] = useState(false);
   const [showEditRulesModal, setShowEditRulesModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [editRulesData, setEditRulesData] = useState({
     expirationDate: '',
     expirationTime: '',
@@ -81,6 +82,11 @@ export default function GhostCardManagePage() {
     merchants: [],
     colorTheme: 'ocean'
   });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+  };
 
   // Fetch card data on load
   useEffect(() => {
@@ -183,7 +189,7 @@ export default function GhostCardManagePage() {
       if (!res.ok) throw new Error('Failed to update card rules');
 
       const data = await res.json();
-      alert(data.message);
+      showToast("Card rules updated successfully", 'success');
 
       // Close modal and refresh card data
       setShowEditRulesModal(false);
@@ -191,7 +197,7 @@ export default function GhostCardManagePage() {
 
     } catch (err) {
       console.error('Error updating card rules:', err);
-      alert('Error updating card rules');
+      showToast('Error updating card rules', 'error');
     }
   };
 
@@ -214,6 +220,9 @@ export default function GhostCardManagePage() {
 
   // Get the card theme
   const cardTheme = CARD_THEMES.find(theme => theme.id === cardData.color_theme) || CARD_THEMES[0];
+  
+  // Check if card is deactivated
+  const isDeactivated = cardData.status === 'canceled' || (cardData.single_use && cardData.used);
 
   return (
     <div className={styles.container}>
@@ -243,9 +252,19 @@ export default function GhostCardManagePage() {
 
       <main className={styles.dashboard}>
         <div className={styles.leftPanel}>
-          <div className={styles.virtualCard} style={{ background: cardTheme.gradient }}>
+          <div 
+            className={`${styles.virtualCard} ${isDeactivated ? styles.deactivated : ''}`} 
+            style={{ background: cardTheme.gradient }}
+          >
             <div className={styles.cardHeader}>
-              <h3>{alias}</h3>
+              <h3>
+                {alias}
+                {cardData.single_use && (
+                  <span className={styles.singleUseBadge}>
+                    {isDeactivated ? 'USED' : 'ONE-TIME'}
+                  </span>
+                )}
+              </h3>
               <div className={styles.balanceContainer}>
                 <span className={styles.balanceLabel}>Balance</span>
                 <span className={styles.balanceAmount}>
@@ -258,7 +277,9 @@ export default function GhostCardManagePage() {
             </div>
             <div className={styles.cardFooter}>
               <span>Expires: {expiresAt}</span>
-              <span className={styles.cardType}>VIRTUAL</span>
+              <span className={styles.cardType}>
+                {isDeactivated ? 'DEACTIVATED' : 'VIRTUAL'}
+              </span>
             </div>
           </div>
 
@@ -318,9 +339,9 @@ export default function GhostCardManagePage() {
                           {transaction.status}
                         </span>
                         <span className={styles.timestamp}>
-                          {transaction.timestamp?.toDate ? 
-                            transaction.timestamp.toDate().toLocaleDateString() : 
-                            new Date(transaction.timestamp).toLocaleDateString()
+                          {transaction.timestamp ? 
+                            new Date(transaction.timestamp).toLocaleString() : 
+                            'No timestamp'
                           }
                         </span>
                       </div>
@@ -350,38 +371,38 @@ export default function GhostCardManagePage() {
                 />
               </div>
               <div className={styles.inputGroup}>
-                <label>Amount (USD)</label>
+                <label>Amount</label>
+                <div className={styles.currencyInputContainer}>
+                  <span className={styles.currencySymbol}>$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="0.01"
+                    value={simulationAmount || ''}
+                    onChange={(e) => setSimulationAmount(e.target.value)}
+                    placeholder="0.00"
+                    required
+                    className={styles.currencyInput}
+                  />
+                </div>
                 <div className={styles.amountContainer}>
                   <input
-                    type="text"
-                    value={`$${parseFloat(simulationAmount || 0).toFixed(2)}`}
-                    onChange={(e) => {
-                      // Strip non-numeric characters and convert to number
-                      const value = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
-                      if (!isNaN(value)) {
-                        const clampedValue = Math.min(1000, Math.max(10, value));
-                        setSimulationAmount(clampedValue.toString());
-                      }
-                    }}
-                    required
-                    className={styles.amountInput}
-                  />
-                  <input
                     type="range"
-                    min="10"
+                    min="0"
                     max="1000"
                     step="10"
-                    value={simulationAmount || 10}
+                    value={simulationAmount || 0}
                     onChange={(e) => setSimulationAmount(e.target.value)}
                     className={styles.amountSlider}
                   />
                   <div className={styles.sliderLabels}>
-                    <span>$10.00</span>
+                    <span>$0.00</span>
                     <span>$1,000.00</span>
                   </div>
                 </div>
               </div>
-              
+
               <div className={styles.inputGroup}>
                 <label>Merchant</label>
                 <select
@@ -397,8 +418,8 @@ export default function GhostCardManagePage() {
                   ))}
                 </select>
               </div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className={styles.simulateBtn}
                 disabled={simulationLoading || !simulationAmount || !simulationMerchant}
               >
@@ -528,7 +549,12 @@ export default function GhostCardManagePage() {
           </div>
         </div>
       )}
+
+      {toast.show && (
+        <div className={`${styles.toast} ${styles[toast.type]}`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
-

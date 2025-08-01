@@ -100,6 +100,7 @@ async function createCard(req, res) {
       original_amount: parsedAmount, // Keep original amount field for reference
       allowed_merchants,
       expires_at: admin.firestore.Timestamp.fromDate(new Date(expires_at)),
+      created_at: admin.firestore.Timestamp.now(), // Add creation timestamp
       status: "active",
       last4: fullCard.last4,
       exp_month: fullCard.exp_month,

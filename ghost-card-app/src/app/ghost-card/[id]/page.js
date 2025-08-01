@@ -114,7 +114,7 @@ export default function GhostCardManagePage() {
     if (!cardData) return;
 
     try {
-      const res = await fetch(`http://localhost:8080/transactions/${cardData.stripe_card_id}/history`);
+      const res = await fetch(`http://localhost:8080/transactions/${cardData.id}/history`);
       const data = await res.json();
 
       if (data.success && data.transactions) {
@@ -142,27 +142,16 @@ export default function GhostCardManagePage() {
         })
       });
 
-      const result = await res.json();
-
-      // Add transaction to list (approved or rejected)
-      const newTransaction = {
-        id: Date.now(),
-        amount: parseFloat(simulationAmount),
-        merchant: simulationMerchant,
-        status: result.approved ? 'approved' : 'rejected',
-        reason: result.reason,
-        timestamp: new Date().toISOString()
-      };
-
-      setTransactions(prev => [newTransaction, ...prev]);
+      // No need to add to local state here!
+      // Always fetch from backend after simulation
 
       // Reset form
       setSimulationAmount('');
       setSimulationMerchant('');
 
       // Refresh card data and transactions
-      fetchCardData();
-      fetchTransactions();
+      await fetchCardData();
+      await fetchTransactions();
 
     } catch (err) {
       console.error('Transaction error:', err);
@@ -226,9 +215,6 @@ export default function GhostCardManagePage() {
   // Get the card theme
   const cardTheme = CARD_THEMES.find(theme => theme.id === cardData.color_theme) || CARD_THEMES[0];
 
-  // Check if card is deactivated
-  const isDeactivated = cardData.status === 'canceled' || (cardData.single_use && cardData.used);
-
   return (
     <div className={styles.container}>
       <nav className={styles.nav}>
@@ -257,16 +243,9 @@ export default function GhostCardManagePage() {
 
       <main className={styles.dashboard}>
         <div className={styles.leftPanel}>
-          <div className={`${styles.virtualCard} ${isDeactivated ? styles.deactivatedCard : ''}`} style={{ background: cardTheme.gradient }}>
+          <div className={styles.virtualCard} style={{ background: cardTheme.gradient }}>
             <div className={styles.cardHeader}>
-              <h3>
-                {alias}
-                {cardData.single_use && (
-                  <span className={styles.singleUseBadge}>
-                    {isDeactivated ? 'USED' : 'ONE-TIME'}
-                  </span>
-                )}
-              </h3>
+              <h3>{alias}</h3>
               <div className={styles.balanceContainer}>
                 <span className={styles.balanceLabel}>Balance</span>
                 <span className={styles.balanceAmount}>
@@ -279,9 +258,7 @@ export default function GhostCardManagePage() {
             </div>
             <div className={styles.cardFooter}>
               <span>Expires: {expiresAt}</span>
-              <span className={styles.cardType}>
-                {isDeactivated ? 'DEACTIVATED' : 'VIRTUAL'}
-              </span>
+              <span className={styles.cardType}>VIRTUAL</span>
             </div>
           </div>
 
@@ -341,8 +318,8 @@ export default function GhostCardManagePage() {
                           {transaction.status}
                         </span>
                         <span className={styles.timestamp}>
-                          {transaction.timestamp?.toDate ?
-                            transaction.timestamp.toDate().toLocaleDateString() :
+                          {transaction.timestamp?.toDate ? 
+                            transaction.timestamp.toDate().toLocaleDateString() : 
                             new Date(transaction.timestamp).toLocaleDateString()
                           }
                         </span>
@@ -354,72 +331,80 @@ export default function GhostCardManagePage() {
                       )}
                     </div>
                   </div>
-                ))
-              )}
+                )))
+              }
             </div>
           </div>
         </div>
 
         <div className={styles.rightPanel}>
-          <div className={`${styles.simulationTool} ${isDeactivated ? styles.disabledSection : ''}`}>
-            <h2>
-              Transaction Simulator
-              {isDeactivated && (
-                <span className={styles.disabledBadge}>DISABLED</span>
-              )}
-            </h2>
-            {isDeactivated ? (
-              <div className={styles.disabledMessage}>
-                <p>❌ Transaction simulation is disabled</p>
-                <p>This card has been deactivated and cannot process new transactions.</p>
-                {cardData.single_use && cardData.used && (
-                  <p><strong>Reason:</strong> One-time use card has been used</p>
-                )}
+          <div className={styles.simulationTool}>
+            <h2>Transaction Simulator</h2>
+            <form className={styles.simulationForm} onSubmit={handleTransactionSimulation}>
+              <div className={styles.inputGroup}>
+                <label>Card Number</label>
+                <input
+                  type="text"
+                  value={cardData?.last4 ? `****${cardData.last4}` : '****----'}
+                  disabled
+                />
               </div>
-            ) : (
-              <form className={styles.simulationForm} onSubmit={handleTransactionSimulation}>
-                <div className={styles.inputGroup}>
-                  <label>Card Number</label>
+              <div className={styles.inputGroup}>
+                <label>Amount (USD)</label>
+                <div className={styles.amountContainer}>
                   <input
                     type="text"
-                    value={cardData?.last4 ? `****${cardData.last4}` : '****----'}
-                    disabled
+                    value={`$${parseFloat(simulationAmount || 0).toFixed(2)}`}
+                    onChange={(e) => {
+                      // Strip non-numeric characters and convert to number
+                      const value = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
+                      if (!isNaN(value)) {
+                        const clampedValue = Math.min(1000, Math.max(10, value));
+                        setSimulationAmount(clampedValue.toString());
+                      }
+                    }}
+                    required
+                    className={styles.amountInput}
                   />
-                </div>
-                <div className={styles.inputGroup}>
-                  <label>Amount (USD)</label>
                   <input
-                    type="number"
-                    value={simulationAmount}
+                    type="range"
+                    min="10"
+                    max="1000"
+                    step="10"
+                    value={simulationAmount || 10}
                     onChange={(e) => setSimulationAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    required
+                    className={styles.amountSlider}
                   />
+                  <div className={styles.sliderLabels}>
+                    <span>$10.00</span>
+                    <span>$1,000.00</span>
+                  </div>
                 </div>
-                <div className={styles.inputGroup}>
-                  <label>Merchant</label>
-                  <select
-                    value={simulationMerchant}
-                    onChange={(e) => setSimulationMerchant(e.target.value)}
-                    required
-                  >
-                    <option value="">Select merchant</option>
-                    {MERCHANTS.map((merchant, index) => (
-                      <option key={index} value={merchant}>
-                        {merchant.charAt(0).toUpperCase() + merchant.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  className={styles.simulateBtn}
-                  disabled={simulationLoading || !simulationAmount || !simulationMerchant}
+              </div>
+              
+              <div className={styles.inputGroup}>
+                <label>Merchant</label>
+                <select
+                  value={simulationMerchant}
+                  onChange={(e) => setSimulationMerchant(e.target.value)}
+                  required
                 >
-                  {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
-                </button>
-              </form>
-            )}
+                  <option value="">Select merchant</option>
+                  {MERCHANTS.map((merchant, index) => (
+                    <option key={index} value={merchant}>
+                      {merchant.charAt(0).toUpperCase() + merchant.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button 
+                type="submit" 
+                className={styles.simulateBtn}
+                disabled={simulationLoading || !simulationAmount || !simulationMerchant}
+              >
+                {simulationLoading ? 'Processing...' : 'Simulate Transaction'}
+              </button>
+            </form>
           </div>
         </div>
       </main>
@@ -546,3 +531,4 @@ export default function GhostCardManagePage() {
     </div>
   );
 }
+

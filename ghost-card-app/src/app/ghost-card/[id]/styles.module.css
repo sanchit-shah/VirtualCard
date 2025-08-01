@@ -529,6 +529,80 @@
   border: 1px dashed #cbd5e1;
 }
 
+.amountContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.amountInput {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: #2d3748 !important;
+  text-align: center !important;
+  padding: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  width: 100% !important;
+  letter-spacing: -0.5px !important;
+  background: white !important;
+}
+
+.amountInput:focus {
+  outline: none !important;
+  border-color: #3182ce !important;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1) !important;
+}
+
+.amountSlider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  background: #e2e8f0;
+  border-radius: 3px;
+  outline: none;
+  margin: 0.5rem 0;
+}
+
+.amountSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #3182ce;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.amountSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background: #2c5282;
+}
+
+.amountSlider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #3182ce;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.amountSlider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  background: #2c5282;
+}
+
+.sliderLabels {
+  display: flex;
+  justify-content: space-between;
+  color: #718096;
+  font-size: 0.875rem;
+  padding: 0 2px;
+  font-variant-numeric: tabular-nums;
+=======
 /* Deactivated Card Styles */
 .deactivatedCard {
   position: relative;

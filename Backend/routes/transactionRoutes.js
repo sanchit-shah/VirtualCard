@@ -77,32 +77,33 @@ router.get("/:card_id/history", async (req, res) => {
   try {
     const { card_id } = req.params;
 
-    // First, get the card to find the Firestore doc ID
-    const card = await getCardData(card_id);
-    if (!card) {
-      return res.status(404).json({ error: "Card not found" });
-    }
-
     const transactionsSnap = await db.collection("transactions")
-      .where("ghost_card_id", "==", card.id) // Use Firestore doc ID
+      .where("ghost_card_id", "==", card_id)  // ✅ direct match
+      .orderBy("timestamp", "desc")
       .get();
 
     // Sort in memory instead of using orderBy to avoid index requirement
     const transactions = transactionsSnap.empty
       ? []
-      : transactionsSnap.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => {
-            const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-            const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-            return timeB - timeA; // desc order (newest first)
-          });
+      : transactionsSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            card_id: data.card_id || card_id,
+            amount: data.amount ?? 0,
+            merchant: data.merchant || "Unknown Merchant",
+            status: data.status || "unknown",
+            reason: data.reason || "No reason provided",
+            timestamp: data.timestamp || null,
+            remaining_balance: data.remaining_balance ?? null
+          };
+        });
 
     res.json({ success: true, transactions });
+
   } catch (err) {
     console.error("Error fetching transactions:", err);
     res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
-
 module.exports = router;

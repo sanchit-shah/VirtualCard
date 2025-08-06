@@ -1,4 +1,8 @@
-# Virtual Card Management System
+# Ghost Card
+
+<p align="center">
+  <img src="./ghost-card-app/public/assets/GhostCard_Logo.png" alt="GhostCard Logo" width="140"/>
+</p>
 
 A comprehensive virtual card management system built with Next.js frontend and Express.js backend, integrated with Stripe Issuing API for virtual card creation and transaction processing.
 
